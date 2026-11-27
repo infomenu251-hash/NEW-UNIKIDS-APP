@@ -3,11 +3,11 @@ package com.unikids.app
 import android.media.MediaPlayer
 import android.os.Bundle
 import androidx.compose.ui.platform.LocalContext
-import import androidx.compose.ui.layout.ContentScale
-import import androidx.compose.ui.graphics.asImageBitmap
-import import androidx.compose.foundation.layout.BoxWithConstraints
-import import androidx.compose.foundation.Image
-import import android.graphics.BitmapFactory
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.Image
+import android.graphics.BitmapFactory
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
