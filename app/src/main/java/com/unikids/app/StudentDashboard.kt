@@ -3,6 +3,7 @@ package com.unikids.app
 import android.graphics.BitmapFactory
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -14,6 +15,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
@@ -146,10 +148,16 @@ fun StudentDashboardScreen(
 
             Spacer(Modifier.height(18.dp))
 
+            val greetingShape = RoundedCornerShape(26.dp)
+
             Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(26.dp),
-                colors = CardDefaults.cardColors(containerColor = UniPurple)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .shadow(12.dp, greetingShape)
+                    .border(2.5.dp, UniPurple, greetingShape),
+                shape = greetingShape,
+                colors = CardDefaults.cardColors(containerColor = UniWhite),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
             ) {
                 Row(
                     modifier = Modifier
@@ -160,21 +168,21 @@ fun StudentDashboardScreen(
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             greeting,
-                            color = UniYellow,
+                            color = UniPurple,
                             fontSize = 23.sp,
                             fontWeight = FontWeight.ExtraBold
                         )
                         Spacer(Modifier.height(5.dp))
                         Text(
                             studentName,
-                            color = UniWhite,
+                            color = UniDarkPurple,
                             fontSize = 19.sp,
                             fontWeight = FontWeight.Bold
                         )
                         Spacer(Modifier.height(7.dp))
                         Text(
                             subtitle,
-                            color = UniWhite,
+                            color = UniDarkPurple,
                             fontSize = 12.sp,
                             lineHeight = 18.sp
                         )
@@ -201,37 +209,37 @@ fun StudentDashboardScreen(
                     "icon_books_3d.png",
                     if (isSinhala) "මගේ පන්ති" else "My Classes",
                     "classes",
-                    Color(0xFFFFF3CC)
+                    UniPurple
                 ),
                 DashboardItem(
                     "icon_calendar_3d.png",
                     if (isSinhala) "කාලසටහන" else "Schedule",
                     "schedule",
-                    Color(0xFFE8F1FF)
+                    UniBlue
                 ),
                 DashboardItem(
                     "icon_video_tile_3d.png",
                     if (isSinhala) "වීඩියෝ පාඩම්" else "Video Lessons",
                     "videos",
-                    Color(0xFFFFE9E9)
+                    UniRed
                 ),
                 DashboardItem(
                     "icon_play_circle_3d.png",
                     if (isSinhala) "Zoom පන්ති" else "Zoom Classes",
                     "zoom",
-                    Color(0xFFE9E6FF)
+                    Color(0xFF8E44AD)
                 ),
                 DashboardItem(
                     "icon_open_book_3d.png",
                     if (isSinhala) "අධ්‍යයන ද්‍රව්‍ය" else "Study Materials",
                     "materials",
-                    Color(0xFFE3F7EF)
+                    Color(0xFF16865B)
                 ),
                 DashboardItem(
                     "icon_progress_chart_3d.png",
                     if (isSinhala) "මගේ ප්‍රගතිය" else "My Progress",
                     "progress",
-                    Color(0xFFFFF0DF)
+                    UniYellow
                 )
             )
 
@@ -278,8 +286,11 @@ fun StudentDashboardScreen(
                     .fillMaxWidth()
                     .clickable { onNavigate("notifications") },
                 shape = RoundedCornerShape(20.dp),
+                modifier = Modifier
+                    .shadow(10.dp, RoundedCornerShape(20.dp))
+                    .border(2.dp, UniBlue, RoundedCornerShape(20.dp)),
                 colors = CardDefaults.cardColors(containerColor = UniWhite),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
             ) {
                 Row(
                     modifier = Modifier.padding(15.dp),
@@ -337,13 +348,17 @@ private fun DashboardTile(
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
+    val tileShape = RoundedCornerShape(22.dp)
+
     Card(
         modifier = modifier
+            .shadow(12.dp, tileShape)
+            .border(2.5.dp, item.background, tileShape)
             .height(142.dp)
             .clickable(onClick = onClick),
-        shape = RoundedCornerShape(22.dp),
-        colors = CardDefaults.cardColors(containerColor = item.background),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        shape = tileShape,
+        colors = CardDefaults.cardColors(containerColor = UniWhite),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(
             modifier = Modifier
