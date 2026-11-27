@@ -1,15 +1,11 @@
+
 package com.unikids.app
 
-import android.media.MediaPlayer
 import android.os.Bundle
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.Image
 import android.graphics.BitmapFactory
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -20,12 +16,23 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import org.json.JSONObject
+import java.net.HttpURLConnection
+import java.net.URL
+
+// IMPORTANT: Add the deployed Apps Script Web App URL here later.
+private const val API_URL = "PASTE_DEPLOYED_WEB_APP_URL_HERE"
 
 private val Purple = Color(0xFF291442)
 private val DarkPurple = Color(0xFF1B0D2C)
@@ -41,12 +48,73 @@ private enum class Page {
 }
 
 private enum class UserType { STUDENT, TEACHER }
-
 private enum class AppLanguage { ENGLISH, SINHALA }
+
+private data class ApiResult(
+    val success: Boolean,
+    val message: String,
+    val token: String = "",
+    val userId: String = "",
+    val userName: String = ""
+)
+
+private suspend fun sendApiRequest(data: JSONObject): ApiResult {
+    return withContext(Dispatchers.IO) {
+        var connection: HttpURLConnection? = null
+
+        try {
+            if (API_URL == "PASTE_DEPLOYED_WEB_APP_URL_HERE") {
+                throw Exception("Apps Script Web App URL has not been added yet.")
+            }
+
+            connection = URL(API_URL).openConnection() as HttpURLConnection
+            connection.requestMethod = "POST"
+            connection.connectTimeout = 30000
+            connection.readTimeout = 30000
+            connection.doOutput = true
+            connection.instanceFollowRedirects = true
+            connection.setRequestProperty("Content-Type", "application/json; charset=utf-8")
+            connection.setRequestProperty("Accept", "application/json")
+
+            connection.outputStream.use { output ->
+                output.write(data.toString().toByteArray(Charsets.UTF_8))
+            }
+
+            val responseCode = connection.responseCode
+            val responseStream = if (responseCode in 200..299) {
+                connection.inputStream
+            } else {
+                connection.errorStream
+            }
+
+            val responseText = responseStream?.bufferedReader()?.use {
+                it.readText()
+            } ?: throw Exception("Empty server response.")
+
+            val json = JSONObject(responseText)
+
+            ApiResult(
+                success = json.optBoolean("success", false),
+                message = json.optString("message", "Unknown server response."),
+                token = json.optString("token", ""),
+                userId = json.optJSONObject("user")?.optString("userId", "") ?: "",
+                userName = json.optJSONObject("user")?.optString("fullName", "") ?: ""
+            )
+        } catch (e: Exception) {
+            ApiResult(
+                success = false,
+                message = e.message ?: "Unable to connect to server."
+            )
+        } finally {
+            connection?.disconnect()
+        }
+    }
+}
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
         setContent {
             MaterialTheme(
                 colorScheme = lightColorScheme(
@@ -68,13 +136,20 @@ private fun UnikidsApp() {
     var language by remember { mutableStateOf(AppLanguage.ENGLISH) }
     var userType by remember { mutableStateOf(UserType.STUDENT) }
 
+    var apiMessage by remember { mutableStateOf("") }
+    var loading by remember { mutableStateOf(false) }
+    var sessionToken by remember { mutableStateOf("") }
+
+    val scope = rememberCoroutineScope()
     val sinhala = language == AppLanguage.SINHALA
 
     LaunchedEffect(Unit) {
-        // Splash minimum duration: 7 seconds.
-        // Backend initialization will be connected in the integration phase.
         delay(7000)
         page = Page.Login
+    }
+
+    fun showError(message: String) {
+        apiMessage = message
     }
 
     Surface(
@@ -83,27 +158,126 @@ private fun UnikidsApp() {
     ) {
         when (page) {
             Page.Splash -> SplashScreen()
+
             Page.Login -> LoginScreen(
                 sinhala = sinhala,
+                loading = loading,
+                message = apiMessage,
                 onLanguage = {
                     language = if (sinhala) AppLanguage.ENGLISH
                     else AppLanguage.SINHALA
                 },
-                onRegister = { page = Page.Register },
-                onLogin = { type ->
-                    userType = type
-                    page = if (type == UserType.STUDENT)
-                        Page.StudentHome else Page.TeacherHome
+                onRegister = {
+                    apiMessage = ""
+                    page = Page.Register
+                },
+                onLogin = { type, mobile, password ->
+                    if (mobile.isBlank() || password.isBlank()) {
+                        showError(
+                            if (sinhala) "දුරකථන අංකය සහ මුරපදය ඇතුළත් කරන්න."
+                            else "Enter your mobile number and password."
+                        )
+                    } else {
+                        loading = true
+                        apiMessage = ""
+
+                        scope.launch {
+                            val action = if (type == UserType.STUDENT) {
+                                "loginStudent"
+                            } else {
+                                "loginTeacher"
+                            }
+
+                            val request = JSONObject().apply {
+                                put("action", action)
+                                put("phone", mobile.trim())
+                                put("password", password)
+                            }
+
+                            val result = sendApiRequest(request)
+                            loading = false
+
+                            if (result.success && result.token.isNotBlank()) {
+                                sessionToken = result.token
+                                userType = type
+                                apiMessage = ""
+
+                                page = if (type == UserType.STUDENT) {
+                                    Page.StudentHome
+                                } else {
+                                    Page.TeacherHome
+                                }
+                            } else {
+                                showError(result.message)
+                            }
+                        }
+                    }
                 }
             )
+
             Page.Register -> RegistrationScreen(
                 sinhala = sinhala,
-                onBack = { page = Page.Login },
-                onSubmit = {
-                    // Backend registration and success voice are
-                    // intentionally not triggered until server success.
+                loading = loading,
+                message = apiMessage,
+                onBack = {
+                    apiMessage = ""
+                    page = Page.Login
+                },
+                onSubmit = { type, name, mobile, address, password ->
+                    if (
+                        name.isBlank() ||
+                        mobile.isBlank() ||
+                        address.isBlank() ||
+                        password.isBlank()
+                    ) {
+                        showError(
+                            if (sinhala) "සියලු තොරතුරු ඇතුළත් කරන්න."
+                            else "Please complete all fields."
+                        )
+                    } else if (password.length < 6) {
+                        showError(
+                            if (sinhala) "මුරපදය අවම වශයෙන් අකුරු 6ක් විය යුතුයි."
+                            else "Password must contain at least 6 characters."
+                        )
+                    } else {
+                        loading = true
+                        apiMessage = ""
+
+                        scope.launch {
+                            val action = if (type == UserType.STUDENT) {
+                                "registerStudent"
+                            } else {
+                                "registerTeacher"
+                            }
+
+                            val request = JSONObject().apply {
+                                put("action", action)
+                                put("fullName", name.trim())
+                                put("phone", mobile.trim())
+                                put("address", address.trim())
+                                put("password", password)
+                            }
+
+                            val result = sendApiRequest(request)
+                            loading = false
+
+                            showError(
+                                if (result.success) {
+                                    page = Page.Login
+                                    if (sinhala) {
+                                        "ලියාපදිංචිය සාර්ථකයි. පරිපාලක අනුමැතිය ලැබෙන තෙක් රැඳී සිටින්න."
+                                    } else {
+                                        result.message
+                                    }
+                                } else {
+                                    result.message
+                                }
+                            )
+                        }
+                    }
                 }
             )
+
             Page.StudentHome -> StudentDashboardScreen(
                 isSinhala = sinhala,
                 onLanguageChange = { selected ->
@@ -124,27 +298,62 @@ private fun UnikidsApp() {
                         else -> Page.StudentHome
                     }
                 },
-                onLogout = { page = Page.Login }
+                onLogout = {
+                    logoutFromApp(sessionToken) {
+                        sessionToken = ""
+                        apiMessage = ""
+                        page = Page.Login
+                    }
+                }
             )
+
             Page.TeacherHome -> DashboardScreen(
                 title = if (sinhala) "ගුරු පුවරුව" else "Teacher Dashboard",
                 sinhala = sinhala,
                 student = false,
                 onOpen = { page = it },
-                onLogout = { page = Page.Login }
+                onLogout = {
+                    logoutFromApp(sessionToken) {
+                        sessionToken = ""
+                        apiMessage = ""
+                        page = Page.Login
+                    }
+                }
             )
+
             else -> FeatureScreen(
                 page = page,
                 sinhala = sinhala,
                 onBack = {
-                    page = if (userType == UserType.STUDENT)
-                        Page.StudentHome else Page.TeacherHome
+                    page = if (userType == UserType.STUDENT) {
+                        Page.StudentHome
+                    } else {
+                        Page.TeacherHome
+                    }
                 }
             )
         }
     }
 }
 
+private fun logoutFromApp(
+    token: String,
+    onFinished: () -> Unit
+) {
+    // Clear the local session even if the network is unavailable.
+    // The server logout request is sent separately.
+    kotlinx.coroutines.GlobalScope.launch(Dispatchers.IO) {
+        try {
+            val request = JSONObject().apply {
+                put("action", "logout")
+                put("token", token)
+            }
+            sendApiRequest(request)
+        } catch (_: Exception) {
+        }
+    }
+    onFinished()
+}
 
 @Composable
 private fun AssetImage(
@@ -154,6 +363,7 @@ private fun AssetImage(
     fallback: @Composable () -> Unit = {}
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
+
     val bitmap = remember(fileName) {
         runCatching {
             context.assets.open("images/$fileName").use {
@@ -173,7 +383,6 @@ private fun AssetImage(
         fallback()
     }
 }
-
 
 @Composable
 private fun SplashScreen() {
@@ -239,9 +448,7 @@ private fun SplashScreen() {
                     .size(54.dp)
                     .offset(x = (maxWidth - 54.dp) * progress)
                     .align(Alignment.TopStart),
-                fallback = {
-                    Text("👋", fontSize = 30.sp)
-                }
+                fallback = { Text("👋", fontSize = 30.sp) }
             )
         }
 
@@ -255,13 +462,14 @@ private fun SplashScreen() {
     }
 }
 
-
 @Composable
 private fun LoginScreen(
     sinhala: Boolean,
+    loading: Boolean,
+    message: String,
     onLanguage: () -> Unit,
     onRegister: () -> Unit,
-    onLogin: (UserType) -> Unit
+    onLogin: (UserType, String, String) -> Unit
 ) {
     var mobile by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -289,8 +497,6 @@ private fun LoginScreen(
             }
         }
 
-        Spacer(Modifier.height(4.dp))
-
         AssetImage(
             fileName = "unikids_logo_concept.png",
             description = "UNIKIDS Logo",
@@ -315,9 +521,7 @@ private fun LoginScreen(
             fileName = "mascot_hello_3d.png",
             description = "Friendly UNIKIDS mascot",
             modifier = Modifier.size(112.dp),
-            fallback = {
-                Text("👋", fontSize = 55.sp)
-            }
+            fallback = { Text("👋", fontSize = 55.sp) }
         )
 
         Text(
@@ -356,23 +560,17 @@ private fun LoginScreen(
 
                 Spacer(Modifier.height(14.dp))
 
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     FilterChip(
                         selected = selectedType == UserType.STUDENT,
                         onClick = { selectedType = UserType.STUDENT },
-                        label = {
-                            Text(if (sinhala) "ශිෂ්‍ය" else "Student")
-                        }
+                        label = { Text(if (sinhala) "ශිෂ්‍ය" else "Student") }
                     )
 
                     FilterChip(
                         selected = selectedType == UserType.TEACHER,
                         onClick = { selectedType = UserType.TEACHER },
-                        label = {
-                            Text(if (sinhala) "ගුරු" else "Teacher")
-                        }
+                        label = { Text(if (sinhala) "ගුරු" else "Teacher") }
                     )
                 }
 
@@ -382,10 +580,7 @@ private fun LoginScreen(
                     value = mobile,
                     onValueChange = { mobile = it },
                     label = {
-                        Text(
-                            if (sinhala) "ජංගම දුරකථන අංකය"
-                            else "Mobile Number"
-                        )
+                        Text(if (sinhala) "ජංගම දුරකථන අංකය" else "Mobile Number")
                     },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
@@ -397,19 +592,17 @@ private fun LoginScreen(
                 OutlinedTextField(
                     value = password,
                     onValueChange = { password = it },
-                    label = {
-                        Text(if (sinhala) "මුරපදය" else "Password")
-                    },
+                    label = { Text(if (sinhala) "මුරපදය" else "Password") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     shape = RoundedCornerShape(13.dp),
-                    visualTransformation = if (showPassword)
+                    visualTransformation = if (showPassword) {
                         VisualTransformation.None
-                    else PasswordVisualTransformation(),
+                    } else {
+                        PasswordVisualTransformation()
+                    },
                     trailingIcon = {
-                        TextButton(
-                            onClick = { showPassword = !showPassword }
-                        ) {
+                        TextButton(onClick = { showPassword = !showPassword }) {
                             Text(
                                 if (showPassword) {
                                     if (sinhala) "සඟවන්න" else "Hide"
@@ -421,26 +614,42 @@ private fun LoginScreen(
                     }
                 )
 
-                Spacer(Modifier.height(20.dp))
-
-                Button(
-                    onClick = { onLogin(selectedType) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(54.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Purple
-                    ),
-                    shape = RoundedCornerShape(16.dp)
-                ) {
+                if (message.isNotBlank()) {
+                    Spacer(Modifier.height(12.dp))
                     Text(
-                        if (sinhala) "ඇතුල් වන්න" else "LOGIN",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold
+                        message,
+                        color = Red,
+                        fontSize = 13.sp
                     )
                 }
 
-                TextButton(onClick = onRegister) {
+                Spacer(Modifier.height(20.dp))
+
+                Button(
+                    onClick = { onLogin(selectedType, mobile, password) },
+                    enabled = !loading,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(54.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Purple),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    if (loading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(22.dp),
+                            color = White,
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Text(
+                            if (sinhala) "ඇතුල් වන්න" else "LOGIN",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+
+                TextButton(onClick = onRegister, enabled = !loading) {
                     Text(
                         if (sinhala) "නව ශිෂ්‍ය / ගුරු ලියාපදිංචිය"
                         else "New Student / Teacher Registration",
@@ -452,19 +661,13 @@ private fun LoginScreen(
 
         Spacer(Modifier.height(25.dp))
 
-        Text(
-            "Powered by",
-            color = Color.Gray,
-            fontSize = 11.sp
-        )
-
+        Text("Powered by", color = Color.Gray, fontSize = 11.sp)
         Text(
             "SmartSolution PVT Ltd",
             color = Purple,
             fontWeight = FontWeight.Bold,
             fontSize = 14.sp
         )
-
         Text(
             "Developed by Menaka Nuwan kumarasinghe",
             color = Color.Gray,
@@ -478,8 +681,10 @@ private fun LoginScreen(
 @Composable
 private fun RegistrationScreen(
     sinhala: Boolean,
+    loading: Boolean,
+    message: String,
     onBack: () -> Unit,
-    onSubmit: () -> Unit
+    onSubmit: (UserType, String, String, String, String) -> Unit
 ) {
     var type by remember { mutableStateOf(UserType.STUDENT) }
     var name by remember { mutableStateOf("") }
@@ -488,7 +693,8 @@ private fun RegistrationScreen(
     var password by remember { mutableStateOf("") }
 
     Column(
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier
+            .fillMaxSize()
             .background(White)
             .verticalScroll(rememberScrollState())
             .padding(22.dp)
@@ -496,12 +702,14 @@ private fun RegistrationScreen(
         TextButton(onClick = onBack) {
             Text(if (sinhala) "← ආපසු" else "← Back")
         }
+
         Text(
             if (sinhala) "ලියාපදිංචිය" else "Registration",
             fontSize = 26.sp,
             color = Purple,
             fontWeight = FontWeight.Bold
         )
+
         Spacer(Modifier.height(14.dp))
 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -517,36 +725,68 @@ private fun RegistrationScreen(
             )
         }
 
-        FormField(if (sinhala) "සම්පූර්ණ නම" else "Full Name", name) { name = it }
-        FormField(if (sinhala) "ජංගම දුරකථන අංකය" else "Mobile Number", mobile) { mobile = it }
-        FormField(if (sinhala) "ලිපිනය" else "Address", address) { address = it }
-        FormField(if (sinhala) "මුරපදය" else "Password", password) { password = it }
+        FormField(
+            if (sinhala) "සම්පූර්ණ නම" else "Full Name",
+            name
+        ) { name = it }
+
+        FormField(
+            if (sinhala) "ජංගම දුරකථන අංකය" else "Mobile Number",
+            mobile
+        ) { mobile = it }
+
+        FormField(
+            if (sinhala) "ලිපිනය" else "Address",
+            address
+        ) { address = it }
+
+        FormField(
+            if (sinhala) "මුරපදය" else "Password",
+            password
+        ) { password = it }
 
         Spacer(Modifier.height(20.dp))
+
         Text(
-            if (sinhala)
+            if (sinhala) {
                 "ලියාපදිංචිය යොමු කළ පසු පරිපාලක අනුමැතිය අවශ්‍ය වේ."
-            else
-                "Admin approval is required after registration.",
+            } else {
+                "Admin approval is required after registration."
+            },
             color = Red,
             fontSize = 13.sp
         )
+
+        if (message.isNotBlank()) {
+            Spacer(Modifier.height(10.dp))
+            Text(message, color = Red, fontSize = 13.sp)
+        }
+
         Spacer(Modifier.height(14.dp))
+
         Button(
-            onClick = onSubmit,
-            modifier = Modifier.fillMaxWidth().height(52.dp),
+            onClick = {
+                onSubmit(type, name, mobile, address, password)
+            },
+            enabled = !loading,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(52.dp),
             colors = ButtonDefaults.buttonColors(containerColor = Purple)
         ) {
-            Text(if (sinhala) "ලියාපදිංචිය යොමු කරන්න" else "SUBMIT REGISTRATION")
+            if (loading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(22.dp),
+                    color = White,
+                    strokeWidth = 2.dp
+                )
+            } else {
+                Text(
+                    if (sinhala) "ලියාපදිංචිය යොමු කරන්න"
+                    else "SUBMIT REGISTRATION"
+                )
+            }
         }
-        Text(
-            if (sinhala)
-                "සැබෑ ලියාපදිංචිය සඳහා Backend සම්බන්ධ කිරීම ඊළඟ සංවර්ධන අදියරේදී සිදු කෙරේ."
-            else
-                "Backend submission will be connected in the integration phase.",
-            color = Color.Gray,
-            fontSize = 11.sp
-        )
     }
 }
 
@@ -560,7 +800,9 @@ private fun FormField(
         value = value,
         onValueChange = onValueChange,
         label = { Text(label) },
-        modifier = Modifier.fillMaxWidth().padding(vertical = 5.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 5.dp),
         singleLine = true
     )
 }
@@ -595,19 +837,35 @@ private fun DashboardScreen(
     }
 
     Column(
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier
+            .fillMaxSize()
             .background(White)
             .verticalScroll(rememberScrollState())
             .padding(20.dp)
     ) {
-        Text("UNIKIDS", color = Purple, fontSize = 27.sp, fontWeight = FontWeight.ExtraBold)
+        Text(
+            "UNIKIDS",
+            color = Purple,
+            fontSize = 27.sp,
+            fontWeight = FontWeight.ExtraBold
+        )
+
         Spacer(Modifier.height(10.dp))
-        Text(title, color = DarkPurple, fontSize = 23.sp, fontWeight = FontWeight.Bold)
+
+        Text(
+            title,
+            color = DarkPurple,
+            fontSize = 23.sp,
+            fontWeight = FontWeight.Bold
+        )
+
         Spacer(Modifier.height(20.dp))
 
         items.forEachIndexed { index, item ->
             Card(
-                modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 6.dp),
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(
                     containerColor = when (index % 3) {
@@ -618,11 +876,18 @@ private fun DashboardScreen(
                 )
             ) {
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text(item.first, color = DarkPurple, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        item.first,
+                        color = DarkPurple,
+                        fontWeight = FontWeight.SemiBold
+                    )
+
                     Button(
                         onClick = { onOpen(item.second) },
                         colors = ButtonDefaults.buttonColors(containerColor = Purple)
@@ -634,7 +899,11 @@ private fun DashboardScreen(
         }
 
         Spacer(Modifier.height(18.dp))
-        OutlinedButton(onClick = onLogout, modifier = Modifier.fillMaxWidth()) {
+
+        OutlinedButton(
+            onClick = onLogout,
+            modifier = Modifier.fillMaxWidth()
+        ) {
             Text(if (sinhala) "ඉවත් වන්න" else "Logout")
         }
     }
@@ -660,18 +929,30 @@ private fun FeatureScreen(
     }
 
     Column(
-        modifier = Modifier.fillMaxSize().background(White).padding(22.dp)
+        modifier = Modifier
+            .fillMaxSize()
+            .background(White)
+            .padding(22.dp)
     ) {
         TextButton(onClick = onBack) {
             Text(if (sinhala) "← ආපසු" else "← Back")
         }
-        Text(title, color = Purple, fontSize = 25.sp, fontWeight = FontWeight.Bold)
-        Spacer(Modifier.height(18.dp))
+
         Text(
-            if (sinhala)
+            title,
+            color = Purple,
+            fontSize = 25.sp,
+            fontWeight = FontWeight.Bold
+        )
+
+        Spacer(Modifier.height(18.dp))
+
+        Text(
+            if (sinhala) {
                 "මෙම විශේෂාංගයේ දත්ත සහ ක්‍රියාකාරකම් Backend සම්බන්ධ කිරීමේ අදියරේදී සක්‍රිය කෙරේ."
-            else
-                "This feature will be connected to the live backend and class-specific data in the integration phase.",
+            } else {
+                "This feature will be connected to the live backend and class-specific data in the next integration phase."
+            },
             color = DarkPurple
         )
     }
