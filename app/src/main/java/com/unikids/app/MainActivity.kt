@@ -2,6 +2,12 @@ package com.unikids.app
 
 import android.media.MediaPlayer
 import android.os.Bundle
+import androidx.compose.ui.platform.LocalContext
+import import androidx.compose.ui.layout.ContentScale
+import import androidx.compose.ui.graphics.asImageBitmap
+import import androidx.compose.foundation.layout.BoxWithConstraints
+import import androidx.compose.foundation.Image
+import import android.graphics.BitmapFactory
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
@@ -124,6 +130,36 @@ private fun UnikidsApp() {
     }
 }
 
+
+@Composable
+private fun AssetImage(
+    fileName: String,
+    description: String,
+    modifier: Modifier = Modifier,
+    fallback: @Composable () -> Unit = {}
+) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val bitmap = remember(fileName) {
+        runCatching {
+            context.assets.open("images/$fileName").use {
+                BitmapFactory.decodeStream(it)?.asImageBitmap()
+            }
+        }.getOrNull()
+    }
+
+    if (bitmap != null) {
+        Image(
+            bitmap = bitmap,
+            contentDescription = description,
+            modifier = modifier,
+            contentScale = ContentScale.Fit
+        )
+    } else {
+        fallback()
+    }
+}
+
+
 @Composable
 private fun SplashScreen() {
     var progress by remember { mutableFloatStateOf(0f) }
@@ -136,34 +172,74 @@ private fun SplashScreen() {
     }
 
     Column(
-        modifier = Modifier.fillMaxSize().background(White),
+        modifier = Modifier
+            .fillMaxSize()
+            .background(White)
+            .padding(20.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Text(
-            "UNIKIDS",
-            color = Purple,
-            fontSize = 38.sp,
-            fontWeight = FontWeight.ExtraBold
+        AssetImage(
+            fileName = "unikids_logo_concept.png",
+            description = "UNIKIDS Logo",
+            modifier = Modifier.size(180.dp),
+            fallback = {
+                Text(
+                    "UNIKIDS",
+                    color = Purple,
+                    fontSize = 38.sp,
+                    fontWeight = FontWeight.ExtraBold
+                )
+            }
         )
+
         Text(
             "Learning Made Fun",
             color = DarkPurple,
-            fontSize = 14.sp
+            fontSize = 15.sp,
+            fontWeight = FontWeight.Medium
         )
-        Spacer(Modifier.height(42.dp))
-        Box(Modifier.fillMaxWidth(0.68f)) {
+
+        Spacer(Modifier.height(35.dp))
+
+        BoxWithConstraints(
+            modifier = Modifier
+                .fillMaxWidth(0.78f)
+                .height(72.dp)
+        ) {
             LinearProgressIndicator(
                 progress = { progress },
-                modifier = Modifier.fillMaxWidth().height(9.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(9.dp)
+                    .align(Alignment.BottomCenter),
                 color = Yellow,
                 trackColor = Color(0xFFECE7F1)
             )
+
+            AssetImage(
+                fileName = "mascot_waving_3d copy.png",
+                description = "UNIKIDS mascot",
+                modifier = Modifier
+                    .size(54.dp)
+                    .offset(x = (maxWidth - 54.dp) * progress)
+                    .align(Alignment.TopStart),
+                fallback = {
+                    Text("👋", fontSize = 30.sp)
+                }
+            )
         }
-        Spacer(Modifier.height(12.dp))
-        Text("Loading...", color = Purple, fontSize = 13.sp)
+
+        Spacer(Modifier.height(15.dp))
+
+        Text(
+            "Loading... ${(progress * 100).toInt()}%",
+            color = Purple,
+            fontSize = 13.sp
+        )
     }
 }
+
 
 @Composable
 private fun LoginScreen(
@@ -178,10 +254,11 @@ private fun LoginScreen(
     var showPassword by remember { mutableStateOf(false) }
 
     Column(
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier
+            .fillMaxSize()
             .background(White)
             .verticalScroll(rememberScrollState())
-            .padding(24.dp),
+            .padding(horizontal = 22.dp, vertical = 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Row(
@@ -189,94 +266,197 @@ private fun LoginScreen(
             horizontalArrangement = Arrangement.End
         ) {
             TextButton(onClick = onLanguage) {
-                Text(if (sinhala) "English" else "සිංහල")
+                Text(
+                    if (sinhala) "English" else "සිංහල",
+                    color = Purple,
+                    fontWeight = FontWeight.Bold
+                )
             }
         }
 
-        Spacer(Modifier.height(35.dp))
-        Text("UNIKIDS", color = Purple, fontSize = 36.sp, fontWeight = FontWeight.ExtraBold)
+        Spacer(Modifier.height(4.dp))
+
+        AssetImage(
+            fileName = "unikids_logo_concept.png",
+            description = "UNIKIDS Logo",
+            modifier = Modifier.size(width = 145.dp, height = 92.dp),
+            fallback = {
+                Text(
+                    "UNIKIDS",
+                    color = Purple,
+                    fontSize = 34.sp,
+                    fontWeight = FontWeight.ExtraBold
+                )
+            }
+        )
+
         Text(
             if (sinhala) "ඉගෙනීම සතුටින්" else "Learning Made Fun",
-            color = DarkPurple
+            color = DarkPurple,
+            fontSize = 14.sp
         )
-        Spacer(Modifier.height(38.dp))
 
-        Text(
-            if (sinhala) "ඇතුල් වන්න" else "Login",
-            color = Purple,
-            fontSize = 25.sp,
-            fontWeight = FontWeight.Bold
-        )
-        Spacer(Modifier.height(20.dp))
-
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            FilterChip(
-                selected = selectedType == UserType.STUDENT,
-                onClick = { selectedType = UserType.STUDENT },
-                label = { Text(if (sinhala) "ශිෂ්‍ය" else "Student") }
-            )
-            FilterChip(
-                selected = selectedType == UserType.TEACHER,
-                onClick = { selectedType = UserType.TEACHER },
-                label = { Text(if (sinhala) "ගුරු" else "Teacher") }
-            )
-        }
-
-        OutlinedTextField(
-            value = mobile,
-            onValueChange = { mobile = it },
-            label = { Text(if (sinhala) "ජංගම දුරකථන අංකය" else "Mobile Number") },
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true
-        )
-        Spacer(Modifier.height(12.dp))
-
-        OutlinedTextField(
-            value = password,
-            onValueChange = { password = it },
-            label = { Text(if (sinhala) "මුරපදය" else "Password") },
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
-            visualTransformation = if (showPassword)
-                VisualTransformation.None else PasswordVisualTransformation(),
-            trailingIcon = {
-                TextButton(onClick = { showPassword = !showPassword }) {
-                    Text(if (showPassword) "Hide" else "Show")
-                }
+        AssetImage(
+            fileName = "mascot_hello_3d.png",
+            description = "Friendly UNIKIDS mascot",
+            modifier = Modifier.size(112.dp),
+            fallback = {
+                Text("👋", fontSize = 55.sp)
             }
         )
 
-        Spacer(Modifier.height(22.dp))
-        Button(
-            onClick = { onLogin(selectedType) },
-            modifier = Modifier.fillMaxWidth().height(52.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Purple),
-            shape = RoundedCornerShape(14.dp)
-        ) {
-            Text(if (sinhala) "ඇතුල් වන්න" else "LOGIN")
-        }
+        Text(
+            if (sinhala) "ආයුබෝවන්!" else "Welcome!",
+            color = Purple,
+            fontSize = 25.sp,
+            fontWeight = FontWeight.ExtraBold
+        )
 
-        TextButton(onClick = onRegister) {
-            Text(
-                if (sinhala) "නව ලියාපදිංචියක් කරන්න"
-                else "New Student / Teacher Registration",
-                color = Blue
+        Text(
+            if (sinhala) "ඔබගේ ගිණුමට ඇතුල් වන්න"
+            else "Login to your account",
+            color = DarkPurple,
+            fontSize = 14.sp
+        )
+
+        Spacer(Modifier.height(18.dp))
+
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(22.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = Color(0xFFF8F5FC)
             )
+        ) {
+            Column(
+                modifier = Modifier.padding(18.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    if (sinhala) "ඇතුල් වන්න" else "LOGIN",
+                    color = Purple,
+                    fontSize = 23.sp,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Spacer(Modifier.height(14.dp))
+
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    FilterChip(
+                        selected = selectedType == UserType.STUDENT,
+                        onClick = { selectedType = UserType.STUDENT },
+                        label = {
+                            Text(if (sinhala) "ශිෂ්‍ය" else "Student")
+                        }
+                    )
+
+                    FilterChip(
+                        selected = selectedType == UserType.TEACHER,
+                        onClick = { selectedType = UserType.TEACHER },
+                        label = {
+                            Text(if (sinhala) "ගුරු" else "Teacher")
+                        }
+                    )
+                }
+
+                Spacer(Modifier.height(12.dp))
+
+                OutlinedTextField(
+                    value = mobile,
+                    onValueChange = { mobile = it },
+                    label = {
+                        Text(
+                            if (sinhala) "ජංගම දුරකථන අංකය"
+                            else "Mobile Number"
+                        )
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    shape = RoundedCornerShape(13.dp)
+                )
+
+                Spacer(Modifier.height(12.dp))
+
+                OutlinedTextField(
+                    value = password,
+                    onValueChange = { password = it },
+                    label = {
+                        Text(if (sinhala) "මුරපදය" else "Password")
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    shape = RoundedCornerShape(13.dp),
+                    visualTransformation = if (showPassword)
+                        VisualTransformation.None
+                    else PasswordVisualTransformation(),
+                    trailingIcon = {
+                        TextButton(
+                            onClick = { showPassword = !showPassword }
+                        ) {
+                            Text(
+                                if (showPassword) {
+                                    if (sinhala) "සඟවන්න" else "Hide"
+                                } else {
+                                    if (sinhala) "පෙන්වන්න" else "Show"
+                                }
+                            )
+                        }
+                    }
+                )
+
+                Spacer(Modifier.height(20.dp))
+
+                Button(
+                    onClick = { onLogin(selectedType) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(54.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Purple
+                    ),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Text(
+                        if (sinhala) "ඇතුල් වන්න" else "LOGIN",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                TextButton(onClick = onRegister) {
+                    Text(
+                        if (sinhala) "නව ශිෂ්‍ය / ගුරු ලියාපදිංචිය"
+                        else "New Student / Teacher Registration",
+                        color = Blue
+                    )
+                }
+            }
         }
 
-        Spacer(Modifier.height(50.dp))
-        Text("Powered by", color = Color.Gray, fontSize = 11.sp)
+        Spacer(Modifier.height(25.dp))
+
+        Text(
+            "Powered by",
+            color = Color.Gray,
+            fontSize = 11.sp
+        )
+
         Text(
             "SmartSolution PVT Ltd",
             color = Purple,
             fontWeight = FontWeight.Bold,
             fontSize = 14.sp
         )
+
         Text(
             "Developed by Menaka Nuwan kumarasinghe",
             color = Color.Gray,
             fontSize = 10.sp
         )
+
+        Spacer(Modifier.height(12.dp))
     }
 }
 
