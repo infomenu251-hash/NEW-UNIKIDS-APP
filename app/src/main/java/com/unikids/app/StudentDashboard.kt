@@ -284,11 +284,10 @@ fun StudentDashboardScreen(
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .shadow(10.dp, RoundedCornerShape(20.dp))
+                    .border(2.dp, UniBlue, RoundedCornerShape(20.dp))
                     .clickable { onNavigate("notifications") },
                 shape = RoundedCornerShape(20.dp),
-                modifier = Modifier
-                    .shadow(10.dp, RoundedCornerShape(20.dp))
-                    .border(2.dp, UniBlue, RoundedCornerShape(20.dp)),
                 colors = CardDefaults.cardColors(containerColor = UniWhite),
                 elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
             ) {
