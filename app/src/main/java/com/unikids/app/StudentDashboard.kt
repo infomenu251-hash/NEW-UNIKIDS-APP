@@ -117,40 +117,56 @@ fun StudentDashboardScreen(
                 .padding(horizontal = 18.dp)
                 .padding(top = 16.dp, bottom = 24.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+            val headerShape = RoundedCornerShape(22.dp)
+
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .shadow(10.dp, headerShape)
+                    .border(1.dp, UniWhite.copy(alpha = 0.28f), headerShape),
+                shape = headerShape,
+                colors = CardDefaults.cardColors(
+                    containerColor = UniWhite.copy(alpha = 0.13f)
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        "NEW UNIKIDS",
-                        color = UniWhite,
-                        fontSize = 19.sp,
-                        fontWeight = FontWeight.ExtraBold
-                    )
-                    Text(
-                        if (isSinhala) "ශිෂ්‍ය පාලක පුවරුව" else "Student Dashboard",
-                        color = UniWhite.copy(alpha = 0.85f),
-                        fontSize = 12.sp
-                    )
-                }
-
-                TextButton(
-                    onClick = { onLanguageChange(!isSinhala) }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 13.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        if (isSinhala) "ENGLISH" else "සිංහල",
-                        color = UniYellow,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            "NEW UNIKIDS",
+                            color = UniWhite,
+                            fontSize = 19.sp,
+                            fontWeight = FontWeight.ExtraBold
+                        )
+                        Text(
+                            if (isSinhala) "ශිෂ්‍ය පාලක පුවරුව" else "Student Dashboard",
+                            color = UniWhite.copy(alpha = 0.9f),
+                            fontSize = 12.sp
+                        )
+                    }
 
-                TextButton(onClick = onLogout) {
-                    Text(
-                        if (isSinhala) "ඉවත් වන්න" else "Logout",
-                        color = UniWhite,
-                        fontSize = 12.sp
-                    )
+                    TextButton(
+                        onClick = { onLanguageChange(!isSinhala) }
+                    ) {
+                        Text(
+                            if (isSinhala) "ENGLISH" else "සිංහල",
+                            color = UniYellow,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    TextButton(onClick = onLogout) {
+                        Text(
+                            if (isSinhala) "ඉවත් වන්න" else "Logout",
+                            color = UniWhite,
+                            fontSize = 12.sp
+                        )
+                    }
                 }
             }
 
@@ -174,6 +190,13 @@ fun StudentDashboardScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            if (isSinhala) "ඔබ නැවතත් සාදරයෙන් පිළිගනිමු" else "WELCOME BACK",
+                            color = UniRed,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.ExtraBold
+                        )
+                        Spacer(Modifier.height(5.dp))
                         Text(
                             greeting,
                             color = UniPurple,
@@ -204,13 +227,43 @@ fun StudentDashboardScreen(
 
             Spacer(Modifier.height(24.dp))
 
-            Text(
-                learningTitle,
-                color = UniWhite,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.ExtraBold
-            )
-            Spacer(Modifier.height(13.dp))
+            Column {
+                Text(
+                    if (isSinhala) "ඉගෙනීමට සූදානම්ද?" else "YOUR LEARNING SPACE",
+                    color = UniYellow,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(Modifier.height(3.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        learningTitle,
+                        color = UniWhite,
+                        fontSize = 21.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Card(
+                        shape = RoundedCornerShape(50.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = UniWhite.copy(alpha = 0.16f)
+                        ),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                    ) {
+                        Text(
+                            if (isSinhala) "අංශ 06" else "06 MODULES",
+                            color = UniYellow,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp)
+                        )
+                    }
+                }
+            }
+            Spacer(Modifier.height(15.dp))
 
             val items = listOf(
                 DashboardItem(
@@ -277,15 +330,22 @@ fun StudentDashboardScreen(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    notificationTitle,
-                    color = UniWhite,
-                    fontSize = 19.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    modifier = Modifier.weight(1f)
-                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        if (isSinhala) "යාවත්කාලීනව සිටින්න" else "STAY UPDATED",
+                        color = UniYellow,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        notificationTitle,
+                        color = UniWhite,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.ExtraBold
+                    )
+                }
                 TextButton(onClick = { onNavigate("notifications") }) {
-                    Text(seeAll, color = UniYellow)
+                    Text(seeAll, color = UniYellow, fontWeight = FontWeight.Bold)
                 }
             }
 
@@ -361,7 +421,7 @@ private fun DashboardTile(
         modifier = modifier
             .shadow(12.dp, tileShape)
             .border(1.dp, item.background, tileShape)
-            .height(142.dp)
+            .height(154.dp)
             .clickable(onClick = onClick),
         shape = tileShape,
         colors = CardDefaults.cardColors(containerColor = UniWhite),
