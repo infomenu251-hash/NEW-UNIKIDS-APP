@@ -31,8 +31,9 @@ import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 
-// IMPORTANT: Add the deployed Apps Script Web App URL here later.
-private const val API_URL = "PASTE_DEPLOYED_WEB_APP_URL_HERE"
+// NEW UNIKIDS APP - LIVE BACKEND
+private const val API_URL =
+    "https://script.google.com/macros/s/AKfycby-0V1PqZVNbhlTCB8hIt9ef4ieLiqpJFaGe4CTvN8fhzkIJeecHDXkaMCW8XG9VH2h/exec"
 
 private val Purple = Color(0xFF291442)
 private val DarkPurple = Color(0xFF1B0D2C)
@@ -63,17 +64,16 @@ private suspend fun sendApiRequest(data: JSONObject): ApiResult {
         var connection: HttpURLConnection? = null
 
         try {
-            if (API_URL == "PASTE_DEPLOYED_WEB_APP_URL_HERE") {
-                throw Exception("Apps Script Web App URL has not been added yet.")
-            }
-
             connection = URL(API_URL).openConnection() as HttpURLConnection
             connection.requestMethod = "POST"
             connection.connectTimeout = 30000
             connection.readTimeout = 30000
             connection.doOutput = true
             connection.instanceFollowRedirects = true
-            connection.setRequestProperty("Content-Type", "application/json; charset=utf-8")
+            connection.setRequestProperty(
+                "Content-Type",
+                "application/json; charset=utf-8"
+            )
             connection.setRequestProperty("Accept", "application/json")
 
             connection.outputStream.use { output ->
@@ -92,13 +92,17 @@ private suspend fun sendApiRequest(data: JSONObject): ApiResult {
             } ?: throw Exception("Empty server response.")
 
             val json = JSONObject(responseText)
+            val user = json.optJSONObject("user")
 
             ApiResult(
                 success = json.optBoolean("success", false),
-                message = json.optString("message", "Unknown server response."),
+                message = json.optString(
+                    "message",
+                    "Unknown server response."
+                ),
                 token = json.optString("token", ""),
-                userId = json.optJSONObject("user")?.optString("userId", "") ?: "",
-                userName = json.optJSONObject("user")?.optString("fullName", "") ?: ""
+                userId = user?.optString("userId", "") ?: "",
+                userName = user?.optString("fullName", "") ?: ""
             )
         } catch (e: Exception) {
             ApiResult(
@@ -164,8 +168,11 @@ private fun UnikidsApp() {
                 loading = loading,
                 message = apiMessage,
                 onLanguage = {
-                    language = if (sinhala) AppLanguage.ENGLISH
-                    else AppLanguage.SINHALA
+                    language = if (sinhala) {
+                        AppLanguage.ENGLISH
+                    } else {
+                        AppLanguage.SINHALA
+                    }
                 },
                 onRegister = {
                     apiMessage = ""
@@ -174,8 +181,11 @@ private fun UnikidsApp() {
                 onLogin = { type, mobile, password ->
                     if (mobile.isBlank() || password.isBlank()) {
                         showError(
-                            if (sinhala) "දුරකථන අංකය සහ මුරපදය ඇතුළත් කරන්න."
-                            else "Enter your mobile number and password."
+                            if (sinhala) {
+                                "දුරකථන අංකය සහ මුරපදය ඇතුළත් කරන්න."
+                            } else {
+                                "Enter your mobile number and password."
+                            }
                         )
                     } else {
                         loading = true
@@ -231,13 +241,19 @@ private fun UnikidsApp() {
                         password.isBlank()
                     ) {
                         showError(
-                            if (sinhala) "සියලු තොරතුරු ඇතුළත් කරන්න."
-                            else "Please complete all fields."
+                            if (sinhala) {
+                                "සියලු තොරතුරු ඇතුළත් කරන්න."
+                            } else {
+                                "Please complete all fields."
+                            }
                         )
                     } else if (password.length < 6) {
                         showError(
-                            if (sinhala) "මුරපදය අවම වශයෙන් අකුරු 6ක් විය යුතුයි."
-                            else "Password must contain at least 6 characters."
+                            if (sinhala) {
+                                "මුරපදය අවම වශයෙන් අකුරු 6ක් විය යුතුයි."
+                            } else {
+                                "Password must contain at least 6 characters."
+                            }
                         )
                     } else {
                         loading = true
@@ -261,18 +277,16 @@ private fun UnikidsApp() {
                             val result = sendApiRequest(request)
                             loading = false
 
-                            showError(
-                                if (result.success) {
-                                    page = Page.Login
-                                    if (sinhala) {
-                                        "ලියාපදිංචිය සාර්ථකයි. පරිපාලක අනුමැතිය ලැබෙන තෙක් රැඳී සිටින්න."
-                                    } else {
-                                        result.message
-                                    }
+                            if (result.success) {
+                                page = Page.Login
+                                apiMessage = if (sinhala) {
+                                    "ලියාපදිංචිය සාර්ථකයි. පරිපාලක අනුමැතිය ලැබෙන තෙක් රැඳී සිටින්න."
                                 } else {
                                     result.message
                                 }
-                            )
+                            } else {
+                                showError(result.message)
+                            }
                         }
                     }
                 }
@@ -281,8 +295,11 @@ private fun UnikidsApp() {
             Page.StudentHome -> StudentDashboardScreen(
                 isSinhala = sinhala,
                 onLanguageChange = { selected ->
-                    language = if (selected) AppLanguage.SINHALA
-                    else AppLanguage.ENGLISH
+                    language = if (selected) {
+                        AppLanguage.SINHALA
+                    } else {
+                        AppLanguage.ENGLISH
+                    }
                 },
                 onNavigate = { destination ->
                     page = when (destination) {
@@ -299,7 +316,7 @@ private fun UnikidsApp() {
                     }
                 },
                 onLogout = {
-                    logoutFromApp(sessionToken) {
+                    logoutFromApp(scope, sessionToken) {
                         sessionToken = ""
                         apiMessage = ""
                         page = Page.Login
@@ -313,7 +330,7 @@ private fun UnikidsApp() {
                 student = false,
                 onOpen = { page = it },
                 onLogout = {
-                    logoutFromApp(sessionToken) {
+                    logoutFromApp(scope, sessionToken) {
                         sessionToken = ""
                         apiMessage = ""
                         page = Page.Login
@@ -337,22 +354,23 @@ private fun UnikidsApp() {
 }
 
 private fun logoutFromApp(
+    scope: kotlinx.coroutines.CoroutineScope,
     token: String,
     onFinished: () -> Unit
 ) {
-    // Clear the local session even if the network is unavailable.
-    // The server logout request is sent separately.
-    kotlinx.coroutines.GlobalScope.launch(Dispatchers.IO) {
+    scope.launch {
         try {
-            val request = JSONObject().apply {
-                put("action", "logout")
-                put("token", token)
+            if (token.isNotBlank()) {
+                val request = JSONObject().apply {
+                    put("action", "logout")
+                    put("token", token)
+                }
+                sendApiRequest(request)
             }
-            sendApiRequest(request)
-        } catch (_: Exception) {
+        } finally {
+            onFinished()
         }
     }
-    onFinished()
 }
 
 @Composable
