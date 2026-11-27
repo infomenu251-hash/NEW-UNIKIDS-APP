@@ -37,7 +37,7 @@ private val White = Color.White
 private enum class Page {
     Splash, Login, Register, StudentHome, TeacherHome,
     Classes, Schedule, Zoom, Lessons, Materials,
-    Payments, Notifications, Profile
+    Payments, Notifications, Profile, Progress
 }
 
 private enum class UserType { STUDENT, TEACHER }
@@ -104,11 +104,26 @@ private fun UnikidsApp() {
                     // intentionally not triggered until server success.
                 }
             )
-            Page.StudentHome -> DashboardScreen(
-                title = if (sinhala) "ශිෂ්‍ය පුවරුව" else "Student Dashboard",
-                sinhala = sinhala,
-                student = true,
-                onOpen = { page = it },
+            Page.StudentHome -> StudentDashboardScreen(
+                isSinhala = sinhala,
+                onLanguageChange = { selected ->
+                    language = if (selected) AppLanguage.SINHALA
+                    else AppLanguage.ENGLISH
+                },
+                onNavigate = { destination ->
+                    page = when (destination) {
+                        "home" -> Page.StudentHome
+                        "classes" -> Page.Classes
+                        "schedule" -> Page.Schedule
+                        "videos" -> Page.Lessons
+                        "zoom" -> Page.Zoom
+                        "materials" -> Page.Materials
+                        "notifications" -> Page.Notifications
+                        "profile" -> Page.Profile
+                        "progress" -> Page.Progress
+                        else -> Page.StudentHome
+                    }
+                },
                 onLogout = { page = Page.Login }
             )
             Page.TeacherHome -> DashboardScreen(
@@ -640,6 +655,7 @@ private fun FeatureScreen(
         Page.Payments -> if (sinhala) "ගෙවීම්" else "Payments"
         Page.Notifications -> if (sinhala) "දැනුම්දීම්" else "Notifications"
         Page.Profile -> if (sinhala) "මගේ පැතිකඩ" else "My Profile"
+        Page.Progress -> if (sinhala) "මගේ ප්‍රගතිය" else "My Progress"
         else -> "UNIKIDS"
     }
 
