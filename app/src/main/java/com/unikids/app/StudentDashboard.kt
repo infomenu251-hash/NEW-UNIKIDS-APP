@@ -7,15 +7,14 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
@@ -30,7 +29,15 @@ private val UniYellow = Color(0xFFFFC928)
 private val UniRed = Color(0xFFD93636)
 private val UniBlue = Color(0xFF1976D2)
 private val UniWhite = Color(0xFFFFFFFF)
-private val UniBackground = Color(0xFFF8F6FC)
+
+private val DashboardGradient = Brush.linearGradient(
+    colors = listOf(
+        UniDarkPurple,
+        UniPurple,
+        Color(0xFF702044),
+        UniRed
+    )
+)
 
 @Composable
 private fun StudentAsset(
@@ -71,7 +78,7 @@ fun StudentDashboardScreen(
     val seeAll = if (isSinhala) "සියල්ල බලන්න" else "See all"
 
     Scaffold(
-        containerColor = UniBackground,
+        containerColor = Color.Transparent,
         bottomBar = {
             NavigationBar(containerColor = UniWhite) {
                 NavigationBarItem(
@@ -104,6 +111,7 @@ fun StudentDashboardScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .background(DashboardGradient)
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 18.dp)
@@ -116,13 +124,13 @@ fun StudentDashboardScreen(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         "NEW UNIKIDS",
-                        color = UniPurple,
+                        color = UniWhite,
                         fontSize = 19.sp,
                         fontWeight = FontWeight.ExtraBold
                     )
                     Text(
                         if (isSinhala) "ශිෂ්‍ය පාලක පුවරුව" else "Student Dashboard",
-                        color = Color.Gray,
+                        color = UniWhite.copy(alpha = 0.85f),
                         fontSize = 12.sp
                     )
                 }
@@ -132,7 +140,7 @@ fun StudentDashboardScreen(
                 ) {
                     Text(
                         if (isSinhala) "ENGLISH" else "සිංහල",
-                        color = UniPurple,
+                        color = UniYellow,
                         fontWeight = FontWeight.Bold
                     )
                 }
@@ -140,7 +148,7 @@ fun StudentDashboardScreen(
                 TextButton(onClick = onLogout) {
                     Text(
                         if (isSinhala) "ඉවත් වන්න" else "Logout",
-                        color = UniRed,
+                        color = UniWhite,
                         fontSize = 12.sp
                     )
                 }
@@ -154,7 +162,7 @@ fun StudentDashboardScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .shadow(12.dp, greetingShape)
-                    .border(2.5.dp, UniPurple, greetingShape),
+                    .border(1.dp, UniPurple, greetingShape),
                 shape = greetingShape,
                 colors = CardDefaults.cardColors(containerColor = UniWhite),
                 elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
@@ -198,7 +206,7 @@ fun StudentDashboardScreen(
 
             Text(
                 learningTitle,
-                color = UniDarkPurple,
+                color = UniWhite,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.ExtraBold
             )
@@ -271,13 +279,13 @@ fun StudentDashboardScreen(
             ) {
                 Text(
                     notificationTitle,
-                    color = UniDarkPurple,
+                    color = UniWhite,
                     fontSize = 19.sp,
                     fontWeight = FontWeight.ExtraBold,
                     modifier = Modifier.weight(1f)
                 )
                 TextButton(onClick = { onNavigate("notifications") }) {
-                    Text(seeAll, color = UniBlue)
+                    Text(seeAll, color = UniYellow)
                 }
             }
 
@@ -285,7 +293,7 @@ fun StudentDashboardScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .shadow(10.dp, RoundedCornerShape(20.dp))
-                    .border(2.dp, UniBlue, RoundedCornerShape(20.dp))
+                    .border(1.dp, UniBlue, RoundedCornerShape(20.dp))
                     .clickable { onNavigate("notifications") },
                 shape = RoundedCornerShape(20.dp),
                 colors = CardDefaults.cardColors(containerColor = UniWhite),
@@ -320,13 +328,13 @@ fun StudentDashboardScreen(
 
             Text(
                 "Powered by SmartSolution PVT Ltd",
-                color = Color.Gray,
+                color = UniWhite.copy(alpha = 0.85f),
                 fontSize = 10.sp,
                 modifier = Modifier.align(Alignment.CenterHorizontally)
             )
             Text(
                 "Developed by Menaka Nuwan kumarasinghe",
-                color = Color.Gray,
+                color = UniWhite.copy(alpha = 0.85f),
                 fontSize = 10.sp,
                 modifier = Modifier.align(Alignment.CenterHorizontally)
             )
@@ -352,7 +360,7 @@ private fun DashboardTile(
     Card(
         modifier = modifier
             .shadow(12.dp, tileShape)
-            .border(2.5.dp, item.background, tileShape)
+            .border(1.dp, item.background, tileShape)
             .height(142.dp)
             .clickable(onClick = onClick),
         shape = tileShape,
@@ -373,7 +381,7 @@ private fun DashboardTile(
             Spacer(Modifier.height(7.dp))
             Text(
                 item.title,
-                color = UniDarkPurple,
+                color = item.background,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Bold
             )
