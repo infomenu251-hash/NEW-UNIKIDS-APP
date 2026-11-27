@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NEW UNIKIDS APP - Preview</title>
+<style>
+:root {
+  --purple:#291442;
+  --dark:#1B0D2C;
+  --yellow:#FFC928;
+  --red:#D93636;
+  --blue:#1976D2;
+  --white:#fff;
+  --bg:#f5f3f8;
+  --muted:#777184;
+}
+* { box-sizing:border-box }
+body {
+  margin:0;
+  background:var(--bg);
+  color:var(--dark);
+  font-family:Inter,Arial,sans-serif;
+}
+button,input,select { font:inherit }
+button { cursor:pointer }
+.app {
+  min-height:100vh;
+  display:grid;
+  grid-template-columns:245px 1fr;
+}
+.sidebar {
+  background:var(--dark);
+  color:white;
+  padding:25px 17px;
+}
+.brand {
+  display:flex;
+  align-items:center;
+  gap:12px;
+  padding:8px 5px 25px;
+}
+.logo {
+  width:47px;height:47px;
+  border-radius:50%;
+  background:white;
+  color:var(--purple);
+  display:grid;
+  place-items:center;
+  font-size:25px;
+}
+.brand strong {font-size:17px}
+.brand small {display:block;color:#cfc4db;margin-top:4px}
+.nav-title {
+  color:#a99bb8;
+  font-size:11px;
+  letter-spacing:1px;
+  margin:22px 10px 9px;
+}
+.nav button {
+  width:100%;
+  border:0;
+  color:#e9e1ef;
+  background:transparent;
+  padding:12px;
+  border-radius:12px;
+  text-align:left;
+  margin:3px 0;
+}
+.nav button.active,.nav button:hover {
+  background:#49305f;
+  color:var(--yellow);
+}
+.sidebar-note {
+  margin-top:35px;
+  padding:13px;
+  background:#30203f;
+  border-radius:12px;
+  font-size:12px;
+  color:#d9cfe2;
+  line-height:1.6;
+}
+main {padding:25px 32px}
+.topbar {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:15px;
+  margin-bottom:25px;
+}
+.topbar h1 {font-size:22px;margin:0}
+.topbar p {color:var(--muted);font-size:13px;margin:6px 0 0}
+.actions {display:flex;gap:9px;align-items:center}
+.pill {
+  border:1px solid #e2dce9;
+  background:white;
+  border-radius:20px;
+  padding:9px 13px;
+  color:var(--purple);
+}
+.workspace {
+  display:grid;
+  grid-template-columns:minmax(300px,1fr) 360px;
+  gap:25px;
+  align-items:start;
+}
+.preview-area {
+  background:#e9e5ee;
+  border:1px solid #ded7e7;
+  border-radius:20px;
+  min-height:700px;
+  padding:25px;
+  display:flex;
+  justify-content:center;
+  align-items:flex-start;
+}
+.phone {
+  width:320px;
+  min-height:630px;
+  background:white;
+  border:8px solid #21172b;
+  border-radius:38px;
+  overflow:hidden;
+  box-shadow:0 18px 45px #24133225;
+  position:relative;
+}
+.notch {
+  width:95px;height:17px;
+  background:#21172b;
+  border-radius:0 0 12px 12px;
+  margin:0 auto 8px;
+}
+.screen {padding:17px 17px 25px;min-height:600px}
+.screen.hidden {display:none}
+.status {
+  display:flex;justify-content:space-between;
+  font-size:10px;color:#777;margin:0 4px 15px;
+}
+.hero {text-align:center;padding:22px 5px 16px}
+.mascot {
+  width:100px;height:100px;border-radius:30px;
+  background:#fff5d6;margin:0 auto 15px;
+  display:grid;place-items:center;font-size:57px;
+}
+.hero h2 {font-size:23px;color:var(--purple);margin:8px 0}
+.hero p {font-size:12px;color:var(--muted);line-height:1.5}
+.field {margin:12px 0;text-align:left}
+.field label {font-size:11px;font-weight:700;color:#554a60;display:block;margin-bottom:6px}
+.field input,.field select {
+  width:100%;border:1px solid #e2dce9;border-radius:11px;
+  padding:12px;background:#fff;outline:none;font-size:12px;
+}
+.primary {
+  border:0;background:var(--purple);color:white;
+  padding:13px;border-radius:13px;width:100%;
+  font-weight:700;margin-top:10px;
+}
+.yellow {background:var(--yellow);color:var(--dark)}
+.blue {background:var(--blue)}
+.red {background:var(--red)}
+.link {
+  color:var(--blue);font-size:11px;text-align:center;
+  margin-top:14px;cursor:pointer;
+}
+.credit {text-align:center;color:#8b8493;font-size:9px;line-height:1.7;margin-top:23px}
+.dash-head {
+  display:flex;align-items:center;gap:10px;margin:8px 0 17px;
+}
+.avatar {
+  width:43px;height:43px;border-radius:50%;
+  display:grid;place-items:center;background:#fff0bd;font-size:24px;
+}
+.dash-head h3 {margin:0;font-size:15px;color:var(--purple)}
+.dash-head p {margin:4px 0 0;color:var(--muted);font-size:10px}
+.banner {
+  padding:16px;border-radius:16px;background:var(--purple);
+  color:white;margin:12px 0 15px;
+}
+.banner strong {font-size:15px}
+.banner p {font-size:11px;line-height:1.5;color:#e8dff0}
+.section-title {font-size:13px;font-weight:800;margin:17px 0 10px}
+.cards {display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.tile {
+  background:#faf9fc;border:1px solid #eee9f2;
+  padding:13px 10px;border-radius:14px;min-height:94px;
+}
+.tile span {font-size:24px}
+.tile strong {display:block;font-size:11px;margin-top:7px}
+.tile small {font-size:9px;color:var(--muted)}
+.row-card {
+  display:flex;align-items:center;gap:10px;
+  background:#faf9fc;border:1px solid #eee9f2;
+  border-radius:12px;padding:11px;margin:8px 0;
+}
+.row-card .emoji {font-size:23px}
+.row-card strong {font-size:11px}
+.row-card small {display:block;color:var(--muted);font-size:9px;margin-top:4px}
+.row-card .tag {margin-left:auto;font-size:9px;color:#a36d00;background:#fff0bf;padding:5px 7px;border-radius:10px}
+.bottom-nav {
+  display:flex;justify-content:space-around;
+  border-top:1px solid #eee;padding:12px 0 3px;
+  margin-top:17px;color:#766b80;font-size:9px;
+}
+.bottom-nav span {text-align:center}
+.bottom-nav b {display:block;font-size:17px;margin-bottom:4px}
+.tools {
+  background:white;border:1px solid #e8e2ed;
+  border-radius:18px;padding:19px;
+}
+.tools h2 {font-size:16px;margin:0 0 5px}
+.tools p {font-size:12px;color:var(--muted);line-height:1.5}
+.screen-list {display:grid;gap:8px;margin-top:15px}
+.screen-list button {
+  background:#faf9fc;border:1px solid #e9e3ee;
+  border-radius:11px;padding:12px;text-align:left;
+  color:var(--dark);font-size:12px;
+}
+.screen-list button.active {
+  border-color:var(--purple);background:#f2edf7;
+  color:var(--purple);font-weight:800;
+}
+.info {
+  background:#fff8df;border-radius:12px;padding:12px;
+  font-size:11px;line-height:1.5;margin-top:17px;
+}
+@media(max-width:850px) {
+  .app {grid-template-columns:1fr}
+  .sidebar {padding:12px 15px}
+  .brand {padding:5px}
+  .nav-title,.sidebar-note {display:none}
+  .nav {display:flex;overflow:auto;gap:5px}
+  .nav button {white-space:nowrap;width:auto;font-size:11px}
+  main {padding:18px 12px}
+  .workspace {grid-template-columns:1fr}
+  .preview-area {min-height:680px;padding:15px}
+  .tools {order:-1}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="logo">🎓</div>
+      <div><strong>NEW UNIKIDS</strong><small>Learning App Preview</small></div>
+    </div>
+    <div class="nav-title">PREVIEW SECTIONS</div>
+    <div class="nav">
+      <button class="active" onclick="show('splash',this)">✨ Splash</button>
+      <button onclick="show('login',this)">🔐 Login</button>
+      <button onclick="show('register',this)">📝 Registration</button>
+      <button onclick="show('student',this)">🎒 Student</button>
+      <button onclick="show('teacher',this)">👩‍🏫 Teacher</button>
+    </div>
+    <div class="sidebar-note">
+      <strong>NEW UNIKIDS APP</strong><br>
+      Student and Teacher Learning Management App.<br><br>
+      Purple · Yellow · Red · Blue · White
+    </div>
+  </aside>
+
+  <main>
+    <div class="topbar">
+      <div>
+        <h1>App Design Preview</h1>
+        <p>Explore the NEW UNIKIDS APP screens</p>
+      </div>
+      <div class="actions">
+        <button class="pill" onclick="toggleLanguage()">සිංහල / EN</button>
+      </div>
+    </div>
+
+    <div class="workspace">
+      <section class="preview-area">
+        <div class="phone">
+          <div class="notch"></div>
+          <div class="screen" id="splash">
+            <div class="status"><span>9:41</span><span>●●●  ▰</span></div>
+            <div class="hero" style="padding-top:85px">
+              <div class="mascot">🎓</div>
+              <h2>NEW UNIKIDS</h2>
+              <p id="splashText">Learn · Explore · Achieve</p>
+              <div style="height:9px;background:#eee8f2;border-radius:10px;margin:45px 12px 10px;overflow:hidden">
+                <div style="height:100%;width:72%;background:var(--yellow);border-radius:10px"></div>
+              </div>
+              <p>Loading your learning world...</p>
+            </div>
+          </div>
+
+          <div class="screen hidden" id="login">
+            <div class="status"><span>9:41</span><span>●●●  ▰</span></div>
+            <div class="hero">
+              <div class="mascot">👋</div>
+              <h2 data-en="Welcome Back!" data-si="ආයුබෝවන්!">Welcome Back!</h2>
+              <p data-en="Sign in to continue learning" data-si="ඉගෙනීම ආරම්භ කිරීමට ඇතුළු වන්න">Sign in to continue learning</p>
+            </div>
+            <div class="field"><label data-en="Mobile Number" data-si="ජංගම දුරකථන අංකය">Mobile Number</label><input placeholder="07X XXX XXXX"></div>
+            <div class="field"><label data-en="Password" data-si="මුරපදය">Password</label><input type="password" placeholder="Enter password"></div>
+            <button class="primary" onclick="alert('Preview only: Login is not connected to the backend yet.')">LOGIN</button>
+            <div class="link" onclick="show('register')">New student? Register here</div>
+            <div class="credit">Powered by<br><b>SmartSolution PVT Ltd</b><br>Developed by Menaka Nuwan kumarasinghe</div>
+          </div>
+
+          <div class="screen hidden" id="register">
+            <div class="status"><span>9:41</span><span>●●●  ▰</span></div>
+            <div class="hero" style="padding:5px">
+              <div class="mascot" style="width:65px;height:65px;font-size:36px">📚</div>
+              <h2 data-en="Student Registration" data-si="ශිෂ්‍ය ලියාපදිංචිය">Student Registration</h2>
+              <p data-en="Create your learning account" data-si="ඔබගේ ඉගෙනුම් ගිණුම සාදන්න">Create your learning account</p>
+            </div>
+            <div class="field"><label>Full Name / සම්පූර්ණ නම</label><input placeholder="Enter full name"></div>
+            <div class="field"><label>Mobile Number / දුරකථන අංකය</label><input placeholder="07X XXX XXXX"></div>
+            <div class="field"><label>Address / ලිපිනය</label><input placeholder="Your home address"></div>
+            <div class="field"><label>School / පාසල</label><input placeholder="School name"></div>
+            <div class="field"><label>Grade / ශ්‍රේණිය</label><select><option>Select grade</option><option>Grade 1</option><option>Grade 2</option><option>Grade 3</option><option>Grade 4</option><option>Grade 5</option><option>Grade 6-13</option></select></div>
+            <button class="primary yellow" onclick="alert('Preview only: Registration is not connected to the backend yet.')">SUBMIT REGISTRATION</button>
+          </div>
+
+          <div class="screen hidden" id="student">
+            <div class="status"><span>9:41</span><span>●●●  ▰</span></div>
+            <div class="dash-head">
+              <div class="avatar">🧒</div>
+              <div><h3 data-en="Hello, Student!" data-si="ආයුබෝවන් දරුවා!">Hello, Student!</h3><p>Welcome to your learning space</p></div>
+            </div>
+            <div class="banner">
+              <strong data-en="Ready to learn today? 🌟" data-si="අද ඉගෙනගන්න සූදානම්ද? 🌟">Ready to learn today? 🌟</strong>
+              <p>Every lesson is a new adventure. Keep learning and shine!</p>
+            </div>
+            <div class="section-title">My Learning</div>
+            <div class="cards">
+              <div class="tile"><span>📚</span><strong>My Classes</strong><small>View enrolled classes</small></div>
+              <div class="tile"><span>📅</span><strong>Class Schedule</strong><small>Upcoming lessons</small></div>
+              <div class="tile"><span>▶️</span><strong>Video Lessons</strong><small>Learn at your pace</small></div>
+              <div class="tile"><span>🎧</span><strong>Zoom Classes</strong><small>Join live classes</small></div>
+              <div class="tile"><span>📖</span><strong>Study Materials</strong><small>Books and documents</small></div>
+              <div class="tile"><span>🏆</span><strong>My Progress</strong><small>Track achievements</small></div>
+            </div>
+            <div class="section-title">Notifications</div>
+            <div class="row-card"><span class="emoji">🔔</span><div><strong>Welcome to NEW UNIKIDS</strong><small>Your learning journey starts here</small></div></div>
+            <div class="bottom-nav"><span><b>🏠</b>Home</span><span><b>📚</b>Classes</span><span><b>🔔</b>Alerts</span><span><b>👤</b>Profile</span></div>
+          </div>
+
+          <div class="screen hidden" id="teacher">
+            <div class="status"><span>9:41</span><span>●●●  ▰</span></div>
+            <div class="dash-head">
+              <div class="avatar" style="background:#e4efff">👩‍🏫</div>
+              <div><h3>Teacher Dashboard</h3><p>Manage your teaching activities</p></div>
+            </div>
+            <div class="banner" style="background:var(--blue)">
+              <strong>Welcome, Teacher</strong>
+              <p>Create learning activities and submit them for Admin approval.</p>
+            </div>
+            <div class="section-title">Teaching Tools</div>
+            <div class="row-card"><span class="emoji">📅</span><div><strong>Manage Schedules</strong><small>Create and submit class schedules</small></div><span class="tag">OPEN</span></div>
+            <div class="row-card"><span class="emoji">🎥</span><div><strong>Manage Zoom Links</strong><small>Add class meeting links</small></div><span class="tag">OPEN</span></div>
+            <div class="row-card"><span class="emoji">▶️</span><div><strong>Video Lessons</strong><small>Upload lessons and thumbnails</small></div><span class="tag">OPEN</span></div>
+            <div class="row-card"><span class="emoji">📄</span><div><strong>Study Materials</strong><small>Share class documents</small></div><span class="tag">OPEN</span></div>
+            <div class="section-title">Approval Status</div>
+            <div class="row-card"><span class="emoji">⏳</span><div><strong>Pending Approval</strong><small>New submissions await Admin review</small></div></div>
+            <div class="bottom-nav"><span><b>🏠</b>Home</span><span><b>➕</b>Create</span><span><b>🔔</b>Alerts</span><span><b>👤</b>Profile</span></div>
+          </div>
+        </div>
+      </section>
+
+      <aside class="tools">
+        <h2>Preview Screens</h2>
+        <p>Select a screen to view it inside the mobile preview.</p>
+        <div class="screen-list">
+          <button class="active" onclick="show('splash',this)">✨ Splash Screen</button>
+          <button onclick="show('login',this)">🔐 Login Screen</button>
+          <button onclick="show('register',this)">📝 Student Registration</button>
+          <button onclick="show('student',this)">🎒 Student Dashboard</button>
+          <button onclick="show('teacher',this)">👩‍🏫 Teacher Dashboard</button>
+        </div>
+        <div class="info">
+          <strong>Preview only</strong><br>
+          මෙය Design Preview එකකි. Login, Registration සහ Backend සම්බන්ධතා තවම ක්‍රියාත්මක නොවේ.
+        </div>
+      </aside>
+    </div>
+  </main>
+</div>
+<script>
+let currentLanguage='en';
+
+function show(id,button) {
+  document.querySelectorAll('.screen').forEach(s=>s.classList.add('hidden'));
+  document.getElementById(id).classList.remove('hidden');
+  document.querySelectorAll('.screen-list button,.nav button').forEach(b=>b.classList.remove('active'));
+  if(button) button.classList.add('active');
+  document.querySelectorAll('.screen-list button,.nav button').forEach(b=>{
+    if(b.getAttribute('onclick')?.includes("'" + id + "'")) b.classList.add('active');
+  });
+}
+
+function toggleLanguage() {
+  currentLanguage=currentLanguage==='en'?'si':'en';
+  document.documentElement.lang=currentLanguage;
+  document.querySelectorAll('[data-en]').forEach(el=>{
+    el.textContent=el.dataset[currentLanguage];
+  });
+  document.getElementById('splashText').textContent =
+    currentLanguage==='si' ? 'ඉගෙනගන්න · ගවේෂණය කරන්න · ජයගන්න' : 'Learn · Explore · Achieve';
+}
+</script>
+</body>
+</html>
