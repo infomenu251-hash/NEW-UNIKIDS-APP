@@ -60,7 +60,8 @@ private data class ApiResult(
     val token: String = "",
     val userId: String = "",
     val userName: String = "",
-    val profile: JSONObject? = null
+    val profile: JSONObject? = null,
+    val response: JSONObject? = null
 )
 
 private suspend fun sendApiRequest(data: JSONObject): ApiResult {
@@ -107,7 +108,8 @@ private suspend fun sendApiRequest(data: JSONObject): ApiResult {
                 token = json.optString("token", ""),
                 userId = user?.optString("userId", "") ?: "",
                 userName = user?.optString("fullName", "") ?: "",
-                profile = user
+                profile = user,
+                response = json
             )
         } catch (e: Exception) {
             ApiResult(
@@ -403,9 +405,11 @@ private fun UnikidsApp() {
                 }
             )
 
-            else -> FeatureScreen(
+            else -> ConnectedFeatureScreen(
                 page = page,
                 sinhala = sinhala,
+                userType = userType,
+                token = sessionToken,
                 onBack = {
                     page = if (userType == UserType.STUDENT) {
                         Page.StudentHome
@@ -1282,6 +1286,184 @@ private fun ProfileInfoRow(
         }
     }
 }
+
+
+@Composable
+private fun ConnectedFeatureScreen(
+    page: Page,
+    sinhala: Boolean,
+    userType: UserType,
+    token: String,
+    onBack: () -> Unit
+) {
+    var loading by remember(page, token) { mutableStateOf(true) }
+    var error by remember(page, token) { mutableStateOf("") }
+    var payload by remember(page, token) { mutableStateOf<JSONObject?>(null) }
+    val uriHandler = androidx.compose.ui.platform.LocalUriHandler.current
+
+    val title = when (page) {
+        Page.Classes -> if (sinhala) "මගේ පන්ති" else "My Classes"
+        Page.Schedule -> if (sinhala) "කාලසටහන්" else "Schedules"
+        Page.Zoom -> if (sinhala) "Zoom පන්ති" else "Zoom Classes"
+        Page.Lessons -> if (sinhala) "වීඩියෝ පාඩම්" else "Video Lessons"
+        Page.Materials -> if (sinhala) "අධ්‍යයන ද්‍රව්‍ය" else "Study Materials"
+        Page.Payments -> if (sinhala) "ගෙවීම්" else "Payments"
+        Page.Notifications -> if (sinhala) "දැනුම්දීම්" else "Notifications"
+        Page.Progress -> if (sinhala) "මගේ ප්‍රගතිය" else "My Progress"
+        else -> "UNIKIDS"
+    }
+
+    val arrayKey = when (page) {
+        Page.Classes -> "classes"
+        Page.Schedule -> "schedules"
+        Page.Zoom -> "zoomLinks"
+        Page.Lessons -> "videoLessons"
+        Page.Materials -> "studyMaterials"
+        Page.Payments -> "payments"
+        Page.Notifications -> "notifications"
+        else -> ""
+    }
+
+    LaunchedEffect(page, token) {
+        loading = true
+        error = ""
+        payload = null
+        val action = when {
+            page == Page.Notifications -> "getNotifications"
+            page == Page.Payments -> "getMyPayments"
+            userType == UserType.STUDENT -> "getStudentContent"
+            else -> "getTeacherDashboard"
+        }
+        val request = JSONObject().apply {
+            put("action", action)
+            put("token", token)
+        }
+        val result = sendApiRequest(request)
+        loading = false
+        if (result.success) {
+            payload = result.response
+        } else {
+            error = result.message.ifBlank {
+                if (sinhala) "දත්ත ලබාගත නොහැක." else "Unable to load data."
+            }
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(White)
+            .verticalScroll(rememberScrollState())
+            .padding(20.dp)
+    ) {
+        TextButton(onClick = onBack) {
+            Text(if (sinhala) "← ආපසු" else "← Back", color = Purple)
+        }
+        Text(title, color = Purple, fontSize = 25.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(16.dp))
+
+        if (loading) {
+            Box(Modifier.fillMaxWidth().padding(30.dp), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(color = Purple)
+            }
+        } else if (error.isNotBlank()) {
+            Text(error, color = Red, fontSize = 14.sp)
+        } else if (page == Page.Progress) {
+            val user = profileDataForProgress(payload)
+            Text(
+                if (sinhala) "ඔබේ ඉගෙනුම් ප්‍රගතිය යාවත්කාලීන වන විට මෙහි පෙන්වනු ඇත." else "Your learning progress will appear here when records are available.",
+                color = DarkPurple
+            )
+        } else {
+            val array = payload?.optJSONArray(arrayKey)
+            if (array == null || array.length() == 0) {
+                Text(
+                    if (sinhala) "දැනට පෙන්වීමට දත්ත නොමැත." else "No records are available yet.",
+                    color = DarkPurple,
+                    fontSize = 14.sp
+                )
+            } else {
+                for (index in 0 until array.length()) {
+                    val item = array.optJSONObject(index) ?: continue
+                    ConnectedRecordCard(
+                        item = item,
+                        page = page,
+                        sinhala = sinhala,
+                        onOpenLink = { url ->
+                            runCatching { uriHandler.openUri(url) }
+                        }
+                    )
+                    Spacer(Modifier.height(10.dp))
+                }
+            }
+
+            if (userType == UserType.TEACHER && page in listOf(Page.Schedule, Page.Zoom, Page.Lessons, Page.Materials)) {
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    if (sinhala) "නව අයිතම ඉදිරි අදියරේදී මෙතැනින් යොමු කළ හැකි ලෙස සම්බන්ධ කරනු ඇත." else "Teacher submission forms will be enabled here after verifying the deployed API fields.",
+                    color = Color.Gray,
+                    fontSize = 12.sp
+                )
+            }
+        }
+    }
+}
+
+private fun profileDataForProgress(payload: JSONObject?): JSONObject? = payload
+
+@Composable
+private fun ConnectedRecordCard(
+    item: JSONObject,
+    page: Page,
+    sinhala: Boolean,
+    onOpenLink: (String) -> Unit
+) {
+    val preferredKeys = when (page) {
+        Page.Classes -> listOf("ClassName", "className", "Subject", "subject", "Grade", "grade", "ClassID", "classId")
+        Page.Schedule -> listOf("className", "ClassName", "classDate", "ClassDate", "date", "startTime", "StartTime", "endTime", "EndTime", "description", "Description", "status", "Status")
+        Page.Zoom -> listOf("className", "ClassName", "linkId", "LinkID", "classDate", "ClassDate", "startTime", "StartTime", "status", "Status")
+        Page.Lessons -> listOf("title", "Title", "videoNumber", "VideoID", "subject", "Subject", "description", "Description", "status", "Status")
+        Page.Materials -> listOf("title", "Title", "subject", "Subject", "description", "Description", "status", "Status")
+        Page.Payments -> listOf("paymentDate", "PaymentDate", "amount", "Amount", "description", "Description", "status", "Status", "receiptNumber", "ReceiptNumber")
+        Page.Notifications -> listOf("title", "Title", "message", "Message", "createdDate", "CreatedDate")
+        else -> emptyList()
+    }
+    val values = preferredKeys.mapNotNull { key ->
+        val value = item.optString(key, "").trim()
+        if (value.isNotBlank() && value != "null") key to value else null
+    }.distinctBy { it.second }
+    val url = listOf("zoomUrl", "ZoomURL", "videoUrl", "VideoURL", "materialUrl", "MaterialURL", "fileUrl", "FileURL", "url", "URL")
+        .firstNotNullOfOrNull { key -> item.optString(key, "").takeIf { it.startsWith("http", true) } }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(17.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFF8F5FC))
+    ) {
+        Column(Modifier.padding(15.dp)) {
+            Text(
+                values.firstOrNull()?.second ?: if (sinhala) "විස්තර" else "Details",
+                color = Purple,
+                fontWeight = FontWeight.Bold,
+                fontSize = 16.sp
+            )
+            values.drop(1).forEach { (key, value) ->
+                val label = key.replace(Regex("([a-z])([A-Z])"), "$1 $2")
+                Text("$label: $value", color = DarkPurple, fontSize = 13.sp, modifier = Modifier.padding(top = 5.dp))
+            }
+            if (url != null) {
+                Spacer(Modifier.height(10.dp))
+                Button(
+                    onClick = { onOpenLink(url) },
+                    colors = ButtonDefaults.buttonColors(containerColor = Blue)
+                ) {
+                    Text(if (page == Page.Zoom) "Join Zoom" else if (sinhala) "විවෘත කරන්න" else "Open")
+                }
+            }
+        }
+    }
+}
+
 
 @Composable
 private fun FeatureScreen(
