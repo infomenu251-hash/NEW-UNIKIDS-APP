@@ -1993,6 +1993,38 @@ private fun TeacherSubmissionForm(
 }
 
 
+
+@Composable
+private fun RemoteThumbnailImage(imageUrl: String) {
+    var bitmap by remember(imageUrl) {
+        mutableStateOf<androidx.compose.ui.graphics.ImageBitmap?>(null)
+    }
+    LaunchedEffect(imageUrl) {
+        bitmap = withContext(Dispatchers.IO) {
+            runCatching {
+                val connection = URL(imageUrl).openConnection() as HttpURLConnection
+                connection.connectTimeout = 12000
+                connection.readTimeout = 12000
+                connection.instanceFollowRedirects = true
+                try {
+                    connection.inputStream.use { BitmapFactory.decodeStream(it)?.asImageBitmap() }
+                } finally {
+                    connection.disconnect()
+                }
+            }.getOrNull()
+        }
+    }
+    if (bitmap != null) {
+        Image(
+            bitmap = bitmap!!,
+            contentDescription = "Video lesson thumbnail",
+            modifier = Modifier.fillMaxWidth().height(170.dp).clip(RoundedCornerShape(12.dp)),
+            contentScale = ContentScale.Crop
+        )
+    }
+}
+
+
 @Composable
 private fun ConnectedRecordCard(
     item: JSONObject,
@@ -2016,6 +2048,11 @@ private fun ConnectedRecordCard(
     }.distinctBy { it.second }
     val url = listOf("zoomUrl", "ZoomURL", "videoUrl", "VideoURL", "materialUrl", "MaterialURL", "fileUrl", "FileURL", "ReceiptURL", "receiptUrl", "url", "URL")
         .firstNotNullOfOrNull { key -> item.optString(key, "").takeIf { it.startsWith("http", true) } }
+    val thumbnail = if (page == Page.Lessons) {
+        listOf("thumbnailUrl", "ThumbnailURL", "thumbnailURL").firstNotNullOfOrNull { key ->
+            item.optString(key, "").takeIf { it.startsWith("http", true) }
+        }
+    } else null
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -2023,6 +2060,10 @@ private fun ConnectedRecordCard(
         colors = CardDefaults.cardColors(containerColor = Color(0xFFF8F5FC))
     ) {
         Column(Modifier.padding(15.dp)) {
+            if (thumbnail != null) {
+                RemoteThumbnailImage(thumbnail)
+                Spacer(Modifier.height(10.dp))
+            }
             Text(
                 values.firstOrNull()?.second ?: if (sinhala) "විස්තර" else "Details",
                 color = Purple,
