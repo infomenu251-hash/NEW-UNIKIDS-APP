@@ -398,6 +398,7 @@ private fun UnikidsApp() {
                 title = if (sinhala) "ගුරු පුවරුව" else "Teacher Dashboard",
                 sinhala = sinhala,
                 student = false,
+                userName = currentUserName,
                 onOpen = { page = it },
                 onLogout = {
                     logoutFromApp(scope, sessionToken) {
@@ -1175,6 +1176,7 @@ private fun DashboardScreen(
     title: String,
     sinhala: Boolean,
     student: Boolean,
+    userName: String,
     onOpen: (Page) -> Unit,
     onLogout: () -> Unit
 ) {
@@ -1236,6 +1238,14 @@ private fun DashboardScreen(
             fontSize = 23.sp,
             fontWeight = FontWeight.Bold
         )
+        if (userName.isNotBlank()) {
+            Text(
+                userName,
+                color = Blue,
+                fontSize = 17.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
 
         Spacer(Modifier.height(20.dp))
 
