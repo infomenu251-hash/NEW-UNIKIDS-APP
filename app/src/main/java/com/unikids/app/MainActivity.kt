@@ -153,8 +153,14 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 private fun UnikidsApp() {
+    val context = androidx.compose.ui.platform.LocalContext.current
     var page by remember { mutableStateOf(Page.Splash) }
-    var language by remember { mutableStateOf(AppLanguage.ENGLISH) }
+    var language by remember {
+        mutableStateOf(
+            if (context.getSharedPreferences("unikids_settings", android.content.Context.MODE_PRIVATE)
+                    .getBoolean("sinhala_language", false)) AppLanguage.SINHALA else AppLanguage.ENGLISH
+        )
+    }
     var userType by remember { mutableStateOf(UserType.STUDENT) }
 
     var apiMessage by remember { mutableStateOf("") }
@@ -216,6 +222,14 @@ private fun UnikidsApp() {
         }
     }
 
+    fun setLanguage(selected: AppLanguage) {
+        language = selected
+        context.getSharedPreferences("unikids_settings", android.content.Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean("sinhala_language", selected == AppLanguage.SINHALA)
+            .apply()
+    }
+
     fun showError(message: String) {
         apiMessage = message
     }
@@ -232,11 +246,7 @@ private fun UnikidsApp() {
                 loading = loading,
                 message = apiMessage,
                 onLanguage = {
-                    language = if (sinhala) {
-                        AppLanguage.ENGLISH
-                    } else {
-                        AppLanguage.SINHALA
-                    }
+                    setLanguage(if (sinhala) AppLanguage.ENGLISH else AppLanguage.SINHALA)
                 },
                 onRegister = {
                     apiMessage = ""
@@ -388,11 +398,7 @@ private fun UnikidsApp() {
                 latestNotificationMessage = studentNotifications.firstOrNull()?.optString("message").orEmpty(),
                 isSinhala = sinhala,
                 onLanguageChange = { selected ->
-                    language = if (selected) {
-                        AppLanguage.SINHALA
-                    } else {
-                        AppLanguage.ENGLISH
-                    }
+                    setLanguage(if (selected) AppLanguage.SINHALA else AppLanguage.ENGLISH)
                 },
                 onNavigate = { destination ->
                     page = when (destination) {
@@ -427,7 +433,7 @@ private fun UnikidsApp() {
                 userName = currentUserName,
                 token = sessionToken,
                 onLanguageChange = { selected ->
-                    language = if (selected) AppLanguage.SINHALA else AppLanguage.ENGLISH
+                    setLanguage(if (selected) AppLanguage.SINHALA else AppLanguage.ENGLISH)
                 },
                 onOpen = { page = it },
                 onLogout = {
