@@ -406,6 +406,7 @@ private fun UnikidsApp() {
                 onLogout = {
                     logoutFromApp(scope, sessionToken) {
                         sessionToken = ""
+                        currentUserName = ""
                         profileData = null
                         profileError = ""
                         apiMessage = ""
