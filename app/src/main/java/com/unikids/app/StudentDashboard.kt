@@ -126,6 +126,8 @@ fun StudentDashboardScreen(
                         .padding(horizontal = 13.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    StudentAsset("unikids_logo_concept.png", Modifier.size(42.dp))
+                    Spacer(Modifier.width(8.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             "NEW UNIKIDS",
