@@ -1452,6 +1452,8 @@ private fun ConnectedFeatureScreen(
     var loading by remember(page, token) { mutableStateOf(true) }
     var error by remember(page, token) { mutableStateOf("") }
     var payload by remember(page, token) { mutableStateOf<JSONObject?>(null) }
+    var refreshKey by remember(page, token) { mutableIntStateOf(0) }
+    var submissionMessage by remember(page, token) { mutableStateOf("") }
     val uriHandler = androidx.compose.ui.platform.LocalUriHandler.current
 
     val title = when (page) {
@@ -1477,7 +1479,7 @@ private fun ConnectedFeatureScreen(
         else -> ""
     }
 
-    LaunchedEffect(page, token) {
+    LaunchedEffect(page, token, refreshKey) {
         loading = true
         error = ""
         payload = null
@@ -1528,6 +1530,23 @@ private fun ConnectedFeatureScreen(
                 color = DarkPurple
             )
         } else {
+            if (submissionMessage.isNotBlank()) {
+                Text(submissionMessage, color = Blue, fontSize = 13.sp)
+                Spacer(Modifier.height(8.dp))
+            }
+            if (userType == UserType.TEACHER && page in listOf(Page.Schedule, Page.Zoom, Page.Lessons, Page.Materials)) {
+                TeacherSubmissionForm(
+                    page = page,
+                    classes = payload?.optJSONArray("classes"),
+                    token = token,
+                    sinhala = sinhala,
+                    onResult = { result ->
+                        submissionMessage = result.message
+                        if (result.success) refreshKey++
+                    }
+                )
+                Spacer(Modifier.height(16.dp))
+            }
             val array = payload?.optJSONArray(arrayKey)
             if (array == null || array.length() == 0) {
                 Text(
@@ -1550,17 +1569,178 @@ private fun ConnectedFeatureScreen(
                 }
             }
 
-            if (userType == UserType.TEACHER && page in listOf(Page.Schedule, Page.Zoom, Page.Lessons, Page.Materials)) {
-                Spacer(Modifier.height(12.dp))
+        }
+    }
+}
+
+
+@Composable
+private fun TeacherSubmissionForm(
+    page: Page,
+    classes: org.json.JSONArray?,
+    token: String,
+    sinhala: Boolean,
+    onResult: (ApiResult) -> Unit
+) {
+    val classItems = remember(classes) {
+        val items = mutableListOf<JSONObject>()
+        if (classes != null) for (i in 0 until classes.length()) classes.optJSONObject(i)?.let { items.add(it) }
+        items
+    }
+    var selectedClassId by remember(page) { mutableStateOf("") }
+    var expanded by remember { mutableStateOf(false) }
+    var date by remember(page) { mutableStateOf("") }
+    var startTime by remember(page) { mutableStateOf("") }
+    var endTime by remember(page) { mutableStateOf("") }
+    var title by remember(page) { mutableStateOf("") }
+    var subject by remember(page) { mutableStateOf("") }
+    var description by remember(page) { mutableStateOf("") }
+    var url by remember(page) { mutableStateOf("") }
+    var thumbnailUrl by remember(page) { mutableStateOf("") }
+    var materialType by remember(page) { mutableStateOf("PDF") }
+    var submitting by remember(page) { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    val selectedClassName = classItems.firstOrNull {
+        it.optString("ClassID", it.optString("classId")) == selectedClassId
+    }?.optString("ClassName", selectedClassId) ?: ""
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFF8F5FC))
+    ) {
+        Column(Modifier.padding(15.dp)) {
+            Text(
+                when (page) {
+                    Page.Schedule -> if (sinhala) "නව කාලසටහනක් යොමු කරන්න" else "Submit a Schedule"
+                    Page.Zoom -> if (sinhala) "නව Zoom Link එකක් යොමු කරන්න" else "Submit a Zoom Link"
+                    Page.Lessons -> if (sinhala) "නව වීඩියෝ පාඩමක් යොමු කරන්න" else "Submit a Video Lesson"
+                    else -> if (sinhala) "අධ්‍යයන ද්‍රව්‍ය යොමු කරන්න" else "Submit Study Material"
+                },
+                color = Purple,
+                fontSize = 17.sp,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(Modifier.height(10.dp))
+            OutlinedButton(onClick = { expanded = true }, modifier = Modifier.fillMaxWidth()) {
                 Text(
-                    if (sinhala) "නව අයිතම ඉදිරි අදියරේදී මෙතැනින් යොමු කළ හැකි ලෙස සම්බන්ධ කරනු ඇත." else "Teacher submission forms will be enabled here after verifying the deployed API fields.",
-                    color = Color.Gray,
-                    fontSize = 12.sp
+                    if (selectedClassId.isBlank()) {
+                        if (sinhala) "පන්තිය තෝරන්න" else "Select Class"
+                    } else selectedClassName.ifBlank { selectedClassId }
                 )
+            }
+            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                classItems.forEach { item ->
+                    val id = item.optString("ClassID", item.optString("classId"))
+                    val name = item.optString("ClassName", id)
+                    DropdownMenuItem(
+                        text = { Text(name) },
+                        onClick = {
+                            selectedClassId = id
+                            expanded = false
+                        }
+                    )
+                }
+            }
+
+            when (page) {
+                Page.Schedule -> {
+                    OutlinedTextField(date, { date = it }, label = { Text(if (sinhala) "දිනය (YYYY-MM-DD)" else "Date (YYYY-MM-DD)") }, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(startTime, { startTime = it }, label = { Text(if (sinhala) "ආරම්භක වේලාව" else "Start Time") }, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(endTime, { endTime = it }, label = { Text(if (sinhala) "අවසන් වේලාව" else "End Time") }, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(subject, { subject = it }, label = { Text(if (sinhala) "විෂය" else "Subject (optional)") }, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(description, { description = it }, label = { Text(if (sinhala) "විස්තර" else "Description (optional)") }, modifier = Modifier.fillMaxWidth())
+                }
+                Page.Zoom -> {
+                    OutlinedTextField(url, { url = it }, label = { Text("Zoom URL (https://)") }, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(date, { date = it }, label = { Text(if (sinhala) "දිනය" else "Date (optional)") }, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(startTime, { startTime = it }, label = { Text(if (sinhala) "ආරම්භක වේලාව" else "Start Time") }, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(endTime, { endTime = it }, label = { Text(if (sinhala) "අවසන් වේලාව" else "End Time") }, modifier = Modifier.fillMaxWidth())
+                }
+                Page.Lessons -> {
+                    OutlinedTextField(title, { title = it }, label = { Text(if (sinhala) "පාඩමේ මාතෘකාව" else "Lesson Title") }, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(url, { url = it }, label = { Text(if (sinhala) "වීඩියෝ URL" else "Video URL") }, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(description, { description = it }, label = { Text(if (sinhala) "විස්තර" else "Description") }, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(thumbnailUrl, { thumbnailUrl = it }, label = { Text(if (sinhala) "Thumbnail URL (optional)" else "Thumbnail URL (optional)") }, modifier = Modifier.fillMaxWidth())
+                }
+                Page.Materials -> {
+                    OutlinedTextField(title, { title = it }, label = { Text(if (sinhala) "මාතෘකාව" else "Title") }, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(url, { url = it }, label = { Text(if (sinhala) "ගොනු URL" else "File URL") }, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(materialType, { materialType = it }, label = { Text(if (sinhala) "ගොනු වර්ගය" else "Material Type") }, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(description, { description = it }, label = { Text(if (sinhala) "විස්තර" else "Description") }, modifier = Modifier.fillMaxWidth())
+                }
+                else -> Unit
+            }
+            Spacer(Modifier.height(12.dp))
+            Button(
+                onClick = {
+                    val action = when (page) {
+                        Page.Schedule -> "submitSchedule"
+                        Page.Zoom -> "submitZoomLink"
+                        Page.Lessons -> "submitVideoLesson"
+                        else -> "submitStudyMaterial"
+                    }
+                    val validUrl = url.startsWith("https://", true) || (page == Page.Lessons && url.startsWith("http://", true))
+                    val valid = selectedClassId.isNotBlank() && when (page) {
+                        Page.Schedule -> date.isNotBlank() && startTime.isNotBlank() && endTime.isNotBlank()
+                        Page.Zoom, Page.Lessons -> validUrl
+                        else -> title.isNotBlank() && url.startsWith("http", true)
+                    }
+                    if (!valid) {
+                        onResult(ApiResult(false, if (sinhala) "අවශ්‍ය තොරතුරු නිවැරදිව ඇතුළත් කරන්න." else "Please complete the required fields with valid values."))
+                    } else {
+                        submitting = true
+                        scope.launch {
+                            val request = JSONObject().apply {
+                                put("action", action)
+                                put("token", token)
+                                put("classId", selectedClassId)
+                                when (page) {
+                                    Page.Schedule -> {
+                                        put("classDate", date)
+                                        put("startTime", startTime)
+                                        put("endTime", endTime)
+                                        if (subject.isNotBlank()) put("subject", subject)
+                                        if (description.isNotBlank()) put("description", description)
+                                    }
+                                    Page.Zoom -> {
+                                        put("zoomUrl", url)
+                                        if (date.isNotBlank()) put("classDate", date)
+                                        if (startTime.isNotBlank()) put("startTime", startTime)
+                                        if (endTime.isNotBlank()) put("endTime", endTime)
+                                    }
+                                    Page.Lessons -> {
+                                        put("videoUrl", url)
+                                        if (title.isNotBlank()) put("title", title)
+                                        if (description.isNotBlank()) put("description", description)
+                                        if (thumbnailUrl.isNotBlank()) put("thumbnailUrl", thumbnailUrl)
+                                    }
+                                    Page.Materials -> {
+                                        put("title", title)
+                                        put("fileUrl", url)
+                                        put("materialType", materialType)
+                                        if (description.isNotBlank()) put("description", description)
+                                    }
+                                    else -> Unit
+                                }
+                            }
+                            val result = sendApiRequest(request)
+                            submitting = false
+                            onResult(result)
+                        }
+                    }
+                },
+                enabled = !submitting,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(containerColor = Purple)
+            ) {
+                if (submitting) CircularProgressIndicator(Modifier.size(18.dp), color = White, strokeWidth = 2.dp)
+                else Text(if (sinhala) "පරිපාලක අනුමැතිය සඳහා යොමු කරන්න" else "Submit for Admin Approval")
             }
         }
     }
 }
+
 
 private fun profileDataForProgress(payload: JSONObject?): JSONObject? = payload
 
