@@ -56,6 +56,10 @@ private fun StudentAsset(
 @Composable
 fun StudentDashboardScreen(
     studentName: String = "Student",
+    availableClasses: Int = 0,
+    availableSchedules: Int = 0,
+    availableVideos: Int = 0,
+    availableMaterials: Int = 0,
     isSinhala: Boolean = true,
     onLanguageChange: (Boolean) -> Unit = {},
     onNavigate: (String) -> Unit = {},
@@ -217,7 +221,34 @@ fun StudentDashboardScreen(
                 }
             }
 
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(18.dp))
+
+            val liveStats = listOf(
+                (if (isSinhala) "පන්ති" else "Classes") to availableClasses,
+                (if (isSinhala) "කාලසටහන්" else "Schedules") to availableSchedules,
+                (if (isSinhala) "වීඩියෝ" else "Videos") to availableVideos,
+                (if (isSinhala) "ද්‍රව්‍ය" else "Materials") to availableMaterials
+            )
+            liveStats.chunked(2).forEach { statRow ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    statRow.forEach { (label, count) ->
+                        Card(
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(14.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFFF8F5FC))
+                        ) {
+                            Column(Modifier.fillMaxWidth().padding(12.dp)) {
+                                Text(count.toString(), color = UniPurple, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold)
+                                Text(label, color = UniDarkPurple, fontSize = 12.sp)
+                            }
+                        }
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+            }
 
             Column {
                 Text(
