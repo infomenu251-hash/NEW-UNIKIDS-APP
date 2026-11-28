@@ -14,7 +14,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
@@ -29,15 +28,6 @@ private val UniYellow = Color(0xFFFFC928)
 private val UniRed = Color(0xFFD93636)
 private val UniBlue = Color(0xFF1976D2)
 private val UniWhite = Color(0xFFFFFFFF)
-
-private val DashboardGradient = Brush.linearGradient(
-    colors = listOf(
-        UniDarkPurple,
-        UniPurple,
-        Color(0xFF702044),
-        UniRed
-    )
-)
 
 @Composable
 private fun StudentAsset(
@@ -78,7 +68,7 @@ fun StudentDashboardScreen(
     val seeAll = if (isSinhala) "සියල්ල බලන්න" else "See all"
 
     Scaffold(
-        containerColor = Color.Transparent,
+        containerColor = UniWhite,
         bottomBar = {
             NavigationBar(containerColor = UniWhite) {
                 NavigationBarItem(
@@ -111,7 +101,7 @@ fun StudentDashboardScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(DashboardGradient)
+                .background(UniWhite)
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 18.dp)
@@ -126,7 +116,7 @@ fun StudentDashboardScreen(
                     .border(1.dp, UniWhite.copy(alpha = 0.28f), headerShape),
                 shape = headerShape,
                 colors = CardDefaults.cardColors(
-                    containerColor = UniWhite.copy(alpha = 0.13f)
+                    containerColor = UniWhite
                 ),
                 elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
             ) {
@@ -139,13 +129,13 @@ fun StudentDashboardScreen(
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             "NEW UNIKIDS",
-                            color = UniWhite,
+                            color = UniPurple,
                             fontSize = 19.sp,
                             fontWeight = FontWeight.ExtraBold
                         )
                         Text(
                             if (isSinhala) "ශිෂ්‍ය පාලක පුවරුව" else "Student Dashboard",
-                            color = UniWhite.copy(alpha = 0.9f),
+                            color = UniDarkPurple,
                             fontSize = 12.sp
                         )
                     }
@@ -155,7 +145,7 @@ fun StudentDashboardScreen(
                     ) {
                         Text(
                             if (isSinhala) "ENGLISH" else "සිංහල",
-                            color = UniYellow,
+                            color = UniBlue,
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -163,7 +153,7 @@ fun StudentDashboardScreen(
                     TextButton(onClick = onLogout) {
                         Text(
                             if (isSinhala) "ඉවත් වන්න" else "Logout",
-                            color = UniWhite,
+                            color = UniRed,
                             fontSize = 12.sp
                         )
                     }
@@ -230,7 +220,7 @@ fun StudentDashboardScreen(
             Column {
                 Text(
                     if (isSinhala) "ඉගෙනීමට සූදානම්ද?" else "YOUR LEARNING SPACE",
-                    color = UniYellow,
+                    color = UniBlue,
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -241,7 +231,7 @@ fun StudentDashboardScreen(
                 ) {
                     Text(
                         learningTitle,
-                        color = UniWhite,
+                        color = UniPurple,
                         fontSize = 21.sp,
                         fontWeight = FontWeight.ExtraBold,
                         modifier = Modifier.weight(1f)
@@ -249,13 +239,13 @@ fun StudentDashboardScreen(
                     Card(
                         shape = RoundedCornerShape(50.dp),
                         colors = CardDefaults.cardColors(
-                            containerColor = UniWhite.copy(alpha = 0.16f)
+                            containerColor = Color(0xFFF3EFF8)
                         ),
                         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                     ) {
                         Text(
                             if (isSinhala) "අංශ 06" else "06 MODULES",
-                            color = UniYellow,
+                            color = UniPurple,
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp)
@@ -333,19 +323,19 @@ fun StudentDashboardScreen(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         if (isSinhala) "යාවත්කාලීනව සිටින්න" else "STAY UPDATED",
-                        color = UniYellow,
+                        color = UniBlue,
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
                         notificationTitle,
-                        color = UniWhite,
+                        color = UniPurple,
                         fontSize = 20.sp,
                         fontWeight = FontWeight.ExtraBold
                     )
                 }
                 TextButton(onClick = { onNavigate("notifications") }) {
-                    Text(seeAll, color = UniYellow, fontWeight = FontWeight.Bold)
+                    Text(seeAll, color = UniBlue, fontWeight = FontWeight.Bold)
                 }
             }
 
@@ -388,13 +378,13 @@ fun StudentDashboardScreen(
 
             Text(
                 "Powered by SmartSolution PVT Ltd",
-                color = UniWhite.copy(alpha = 0.85f),
+                color = Color.Gray,
                 fontSize = 10.sp,
                 modifier = Modifier.align(Alignment.CenterHorizontally)
             )
             Text(
                 "Developed by Menaka Nuwan kumarasinghe",
-                color = UniWhite.copy(alpha = 0.85f),
+                color = Color.Gray,
                 fontSize = 10.sp,
                 modifier = Modifier.align(Alignment.CenterHorizontally)
             )
