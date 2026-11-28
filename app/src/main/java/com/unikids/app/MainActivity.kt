@@ -982,6 +982,7 @@ private fun RegistrationScreen(
     var mobile by remember { mutableStateOf("") }
     var address by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var showRegistrationPassword by remember { mutableStateOf(false) }
     var email by remember { mutableStateOf("") }
     var dateOfBirth by remember { mutableStateOf("") }
     var school by remember { mutableStateOf("") }
@@ -1103,10 +1104,23 @@ private fun RegistrationScreen(
             address
         ) { address = it }
 
-        FormField(
-            if (sinhala) "මුරපදය" else "Password",
-            password
-        ) { password = it }
+        OutlinedTextField(
+            value = password,
+            onValueChange = { password = it },
+            label = { Text(if (sinhala) "මුරපදය" else "Password") },
+            modifier = Modifier.fillMaxWidth().padding(vertical = 5.dp),
+            singleLine = true,
+            visualTransformation = if (showRegistrationPassword) VisualTransformation.None else PasswordVisualTransformation(),
+            trailingIcon = {
+                TextButton(onClick = { showRegistrationPassword = !showRegistrationPassword }) {
+                    Text(if (showRegistrationPassword) {
+                        if (sinhala) "සඟවන්න" else "Hide"
+                    } else {
+                        if (sinhala) "පෙන්වන්න" else "Show"
+                    })
+                }
+            }
+        )
 
         FormField(
             if (sinhala) "විද්‍යුත් තැපෑල (අත්‍යවශ්‍ය නොවේ)" else "Email (optional)",
