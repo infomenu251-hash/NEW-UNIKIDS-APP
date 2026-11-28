@@ -989,12 +989,27 @@ private fun RegistrationScreen(
             Text(if (sinhala) "← ආපසු" else "← Back")
         }
 
-        Text(
-            if (sinhala) "ලියාපදිංචිය" else "Registration",
-            fontSize = 26.sp,
-            color = Purple,
-            fontWeight = FontWeight.Bold
-        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            AssetImage(
+                fileName = "mascot_hello_3d.png",
+                description = "Friendly UNIKIDS mascot",
+                modifier = Modifier.size(76.dp)
+            )
+            Spacer(Modifier.width(10.dp))
+            Column {
+                Text(
+                    if (sinhala) "ලියාපදිංචිය" else "Registration",
+                    fontSize = 26.sp,
+                    color = Purple,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    if (sinhala) "UNIKIDS පවුලට එක්වන්න" else "Join the UNIKIDS family",
+                    color = DarkPurple,
+                    fontSize = 12.sp
+                )
+            }
+        }
 
         Spacer(Modifier.height(14.dp))
 
@@ -1191,12 +1206,27 @@ private fun DashboardScreen(
             .verticalScroll(rememberScrollState())
             .padding(20.dp)
     ) {
-        Text(
-            "UNIKIDS",
-            color = Purple,
-            fontSize = 27.sp,
-            fontWeight = FontWeight.ExtraBold
-        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            AssetImage(
+                fileName = "unikids_logo_concept.png",
+                description = "UNIKIDS Logo",
+                modifier = Modifier.size(58.dp)
+            )
+            Spacer(Modifier.width(12.dp))
+            Column {
+                Text(
+                    "NEW UNIKIDS",
+                    color = Purple,
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.ExtraBold
+                )
+                Text(
+                    if (sinhala) "ගුරු පාලක පුවරුව" else "Teacher Workspace",
+                    color = DarkPurple,
+                    fontSize = 12.sp
+                )
+            }
+        }
 
         Spacer(Modifier.height(10.dp))
 
@@ -1230,11 +1260,30 @@ private fun DashboardScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text(
-                        item.first,
-                        color = DarkPurple,
-                        fontWeight = FontWeight.SemiBold
-                    )
+                    val iconFile = when (item.second) {
+                        Page.Schedule -> "icon_calendar_3d.png"
+                        Page.Zoom -> "icon_play_circle_3d.png"
+                        Page.Lessons -> "icon_video_tile_3d.png"
+                        Page.Materials -> "icon_open_book_3d.png"
+                        Page.Profile -> "icon_profile_3d.png"
+                        else -> "icon_books_3d.png"
+                    }
+                    Row(
+                        modifier = Modifier.weight(1f),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        AssetImage(
+                            fileName = iconFile,
+                            description = item.first,
+                            modifier = Modifier.size(48.dp)
+                        )
+                        Spacer(Modifier.width(12.dp))
+                        Text(
+                            item.first,
+                            color = DarkPurple,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
 
                     Button(
                         onClick = { onOpen(item.second) },
