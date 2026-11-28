@@ -3,6 +3,8 @@ package com.unikids.app
 
 import android.os.Bundle
 import android.graphics.BitmapFactory
+import android.media.MediaPlayer
+import android.net.Uri
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Image
@@ -46,7 +48,7 @@ private val White = Color.White
 private enum class Page {
     Splash, Login, Register, StudentHome, TeacherHome,
     Classes, Schedule, Zoom, Lessons, Materials,
-    Payments, Notifications, Profile, Progress
+    Payments, Notifications, Profile, Progress, RegistrationSuccess
 }
 
 private enum class UserType { STUDENT, TEACHER }
@@ -149,7 +151,9 @@ private fun UnikidsApp() {
     var profileData by remember { mutableStateOf<JSONObject?>(null) }
     var profileLoading by remember { mutableStateOf(false) }
     var profileError by remember { mutableStateOf("") }
+    var registrationSuccessType by remember { mutableStateOf(UserType.STUDENT) }
 
+    val context = androidx.compose.ui.platform.LocalContext.current
     val scope = rememberCoroutineScope()
     val sinhala = language == AppLanguage.SINHALA
 
@@ -305,12 +309,15 @@ private fun UnikidsApp() {
                             loading = false
 
                             if (result.success) {
-                                page = Page.Login
-                                apiMessage = if (sinhala) {
-                                    "ලියාපදිංචිය සාර්ථකයි. පරිපාලක අනුමැතිය ලැබෙන තෙක් රැඳී සිටින්න."
-                                } else {
-                                    result.message
+                                registrationSuccessType = type
+                                val voiceFile = when {
+                                    type == UserType.STUDENT && sinhala -> "sinhala_voiceover_forstudents (1).wav"
+                                    type == UserType.STUDENT -> "english_voiceover_forstudents(1).wav"
+                                    sinhala -> "sinhala_voiceover_forteachers(2).wav"
+                                    else -> "english_voiceover_forteachers(2).wav"
                                 }
+                                playVoiceAsset(context, voiceFile)
+                                page = Page.RegistrationSuccess
                             } else {
                                 showError(result.message)
                             }
@@ -369,6 +376,19 @@ private fun UnikidsApp() {
                 }
             )
 
+            Page.RegistrationSuccess -> RegistrationSuccessScreen(
+                sinhala = sinhala,
+                userType = registrationSuccessType,
+                onContinue = {
+                    apiMessage = if (sinhala) {
+                        "ලියාපදිංචිය සාර්ථකයි. පරිපාලක අනුමැතිය ලැබෙන තෙක් රැඳී සිටින්න."
+                    } else {
+                        "Registration successful. Please wait for Admin approval."
+                    }
+                    page = Page.Login
+                }
+            )
+
             Page.Profile -> ProfileScreen(
                 profile = profileData,
                 loading = profileLoading,
@@ -397,6 +417,114 @@ private fun UnikidsApp() {
         }
     }
 }
+
+
+private fun playVoiceAsset(
+    context: android.content.Context,
+    fileName: String
+) {
+    runCatching {
+        val mediaPlayer = MediaPlayer()
+        val asset = context.assets.openFd("voices/$fileName")
+        mediaPlayer.setDataSource(
+            asset.fileDescriptor,
+            asset.startOffset,
+            asset.length
+        )
+        asset.close()
+        mediaPlayer.setOnCompletionListener { player -> player.release() }
+        mediaPlayer.setOnErrorListener { player, _, _ ->
+            player.release()
+            true
+        }
+        mediaPlayer.prepare()
+        mediaPlayer.start()
+    }
+}
+
+@Composable
+private fun RegistrationSuccessScreen(
+    sinhala: Boolean,
+    userType: UserType,
+    onContinue: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(White)
+            .verticalScroll(rememberScrollState())
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        AssetImage(
+            fileName = "unikids_logo_concept.png",
+            description = "UNIKIDS Logo",
+            modifier = Modifier.size(width = 150.dp, height = 95.dp)
+        )
+        Spacer(Modifier.height(12.dp))
+        AssetImage(
+            fileName = "mascot_celebrating_3d.png",
+            description = "Celebrating UNIKIDS mascot",
+            modifier = Modifier.size(190.dp)
+        )
+        Text(
+            if (sinhala) "ලියාපදිංචිය සාර්ථකයි!" else "Registration Successful!",
+            color = Purple,
+            fontSize = 25.sp,
+            fontWeight = FontWeight.ExtraBold
+        )
+        Spacer(Modifier.height(10.dp))
+        Text(
+            if (sinhala) {
+                if (userType == UserType.STUDENT) "ආදරණීය ශිෂ්‍යයා, සාදරයෙන් පිළිගනිමු!" else "ආදරණීය ගුරුතුමනි, සාදරයෙන් පිළිගනිමු!"
+            } else {
+                if (userType == UserType.STUDENT) "Welcome to the UNIKIDS learning family!" else "Welcome to the UNIKIDS teaching family!"
+            },
+            color = DarkPurple,
+            fontSize = 16.sp
+        )
+        Spacer(Modifier.height(18.dp))
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(18.dp),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF8DF))
+        ) {
+            Text(
+                if (sinhala) {
+                    "ඔබගේ ලියාපදිංචි තොරතුරු අපට ලැබී ඇත. පරිපාලක අනුමැතිය ලැබෙන තෙක් රැඳී සිටින්න."
+                } else {
+                    "Your registration has been received. Your account will be available after Admin approval."
+                },
+                modifier = Modifier.padding(18.dp),
+                color = DarkPurple,
+                fontSize = 14.sp,
+                lineHeight = 21.sp
+            )
+        }
+        Spacer(Modifier.height(22.dp))
+        Button(
+            onClick = onContinue,
+            modifier = Modifier.fillMaxWidth().height(52.dp),
+            shape = RoundedCornerShape(15.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = Purple)
+        ) {
+            Text(if (sinhala) "Login පිටුවට යන්න" else "Continue to Login")
+        }
+        Spacer(Modifier.height(12.dp))
+        Text(
+            if (sinhala) "Powered by SmartSolution PVT Ltd" else "Powered by SmartSolution PVT Ltd",
+            color = Color.Gray,
+            fontSize = 11.sp
+        )
+        Text(
+            "Developed by Menaka Nuwan kumarasinghe",
+            color = Color.Gray,
+            fontSize = 10.sp
+        )
+    }
+}
+
 
 private fun logoutFromApp(
     scope: kotlinx.coroutines.CoroutineScope,
