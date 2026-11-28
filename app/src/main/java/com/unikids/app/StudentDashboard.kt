@@ -36,16 +36,18 @@ private fun StudentAsset(
 ) {
     val context = LocalContext.current
     val bitmap = remember(fileName) {
-        runCatching {
+        UnikidsImageCache.get("asset:$fileName") ?: runCatching {
             context.assets.open("images/$fileName").use {
-                BitmapFactory.decodeStream(it).asImageBitmap()
+                BitmapFactory.decodeStream(it)?.also { decoded ->
+                    UnikidsImageCache.put("asset:$fileName", decoded)
+                }
             }
         }.getOrNull()
     }
 
     if (bitmap != null) {
         Image(
-            bitmap = bitmap,
+            bitmap = bitmap.asImageBitmap(),
             contentDescription = null,
             modifier = modifier,
             contentScale = ContentScale.Fit
@@ -80,25 +82,25 @@ fun StudentDashboardScreen(
                 NavigationBarItem(
                     selected = true,
                     onClick = { onNavigate("home") },
-                    icon = { Text("🏠", fontSize = 21.sp) },
+                    icon = { StudentAsset("icon_home_3d.png", Modifier.size(28.dp)) },
                     label = { Text(if (isSinhala) "මුල් පිටුව" else "Home") }
                 )
                 NavigationBarItem(
                     selected = false,
                     onClick = { onNavigate("classes") },
-                    icon = { Text("📚", fontSize = 21.sp) },
+                    icon = { StudentAsset("icon_books_3d.png", Modifier.size(28.dp)) },
                     label = { Text(if (isSinhala) "පන්ති" else "Classes") }
                 )
                 NavigationBarItem(
                     selected = false,
                     onClick = { onNavigate("notifications") },
-                    icon = { Text("🔔", fontSize = 21.sp) },
+                    icon = { StudentAsset("icon_achievement_3d.png", Modifier.size(28.dp)) },
                     label = { Text(if (isSinhala) "දැනුම්දීම්" else "Alerts") }
                 )
                 NavigationBarItem(
                     selected = false,
                     onClick = { onNavigate("profile") },
-                    icon = { Text("👤", fontSize = 21.sp) },
+                    icon = { StudentAsset("icon_profile_3d.png", Modifier.size(28.dp)) },
                     label = { Text(if (isSinhala) "මගේ විස්තර" else "Profile") }
                 )
             }
@@ -279,7 +281,7 @@ fun StudentDashboardScreen(
                         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                     ) {
                         Text(
-                            if (isSinhala) "අංශ 06" else "06 MODULES",
+                            if (isSinhala) "අංශ 08" else "08 MODULES",
                             color = UniPurple,
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
@@ -326,6 +328,18 @@ fun StudentDashboardScreen(
                     if (isSinhala) "මගේ ප්‍රගතිය" else "My Progress",
                     "progress",
                     UniYellow
+                ),
+                DashboardItem(
+                    "icon_bag_3d.png",
+                    if (isSinhala) "ගෙවීම්" else "Payments",
+                    "payments",
+                    UniRed
+                ),
+                DashboardItem(
+                    "icon_profile_3d.png",
+                    if (isSinhala) "මගේ පැතිකඩ" else "My Profile",
+                    "profile",
+                    UniBlue
                 )
             )
 
