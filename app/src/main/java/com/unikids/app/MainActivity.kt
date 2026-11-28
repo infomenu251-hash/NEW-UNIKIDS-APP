@@ -163,6 +163,7 @@ private fun UnikidsApp() {
     var profileData by remember { mutableStateOf<JSONObject?>(null) }
     var profileLoading by remember { mutableStateOf(false) }
     var profileError by remember { mutableStateOf("") }
+    var studentDashboardData by remember { mutableStateOf<JSONObject?>(null) }
     var registrationSuccessType by remember { mutableStateOf(UserType.STUDENT) }
     var currentUserName by remember { mutableStateOf("") }
 
@@ -176,6 +177,14 @@ private fun UnikidsApp() {
     }
 
     LaunchedEffect(page, sessionToken) {
+        if (page == Page.StudentHome && sessionToken.isNotBlank()) {
+            val request = JSONObject().apply {
+                put("action", "getStudentContent")
+                put("token", sessionToken)
+            }
+            val result = sendApiRequest(request)
+            studentDashboardData = if (result.success) result.response else null
+        }
         if (page == Page.Profile && sessionToken.isNotBlank()) {
             profileLoading = true
             profileError = ""
@@ -360,6 +369,10 @@ private fun UnikidsApp() {
 
             Page.StudentHome -> StudentDashboardScreen(
                 studentName = currentUserName.ifBlank { if (sinhala) "ශිෂ්‍යයා" else "Student" },
+                availableClasses = studentDashboardData?.optJSONArray("classes")?.length() ?: 0,
+                availableSchedules = studentDashboardData?.optJSONArray("schedules")?.length() ?: 0,
+                availableVideos = studentDashboardData?.optJSONArray("videoLessons")?.length() ?: 0,
+                availableMaterials = studentDashboardData?.optJSONArray("studyMaterials")?.length() ?: 0,
                 isSinhala = sinhala,
                 onLanguageChange = { selected ->
                     language = if (selected) {
