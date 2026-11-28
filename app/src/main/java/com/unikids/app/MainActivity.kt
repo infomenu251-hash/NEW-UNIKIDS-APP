@@ -164,6 +164,7 @@ private fun UnikidsApp() {
     var profileLoading by remember { mutableStateOf(false) }
     var profileError by remember { mutableStateOf("") }
     var studentDashboardData by remember { mutableStateOf<JSONObject?>(null) }
+    var studentNotifications by remember { mutableStateOf<List<JSONObject>>(emptyList()) }
     var registrationSuccessType by remember { mutableStateOf(UserType.STUDENT) }
     var currentUserName by remember { mutableStateOf("") }
 
@@ -184,6 +185,16 @@ private fun UnikidsApp() {
             }
             val result = sendApiRequest(request)
             studentDashboardData = if (result.success) result.response else null
+            val notificationResult = sendApiRequest(JSONObject().apply {
+                put("action", "getNotifications")
+                put("token", sessionToken)
+            })
+            val notificationArray = notificationResult.response?.optJSONArray("notifications")
+            val notificationList = mutableListOf<JSONObject>()
+            if (notificationArray != null) {
+                for (i in 0 until notificationArray.length()) notificationArray.optJSONObject(i)?.let { notificationList.add(it) }
+            }
+            studentNotifications = if (notificationResult.success) notificationList else emptyList()
         }
         if (page == Page.Profile && sessionToken.isNotBlank()) {
             profileLoading = true
@@ -373,6 +384,8 @@ private fun UnikidsApp() {
                 availableSchedules = studentDashboardData?.optJSONArray("schedules")?.length() ?: 0,
                 availableVideos = studentDashboardData?.optJSONArray("videoLessons")?.length() ?: 0,
                 availableMaterials = studentDashboardData?.optJSONArray("studyMaterials")?.length() ?: 0,
+                latestNotificationTitle = studentNotifications.firstOrNull()?.optString("title").orEmpty(),
+                latestNotificationMessage = studentNotifications.firstOrNull()?.optString("message").orEmpty(),
                 isSinhala = sinhala,
                 onLanguageChange = { selected ->
                     language = if (selected) {
