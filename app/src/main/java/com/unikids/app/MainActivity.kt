@@ -324,15 +324,21 @@ private fun UnikidsApp() {
                         mobile.isBlank() ||
                         address.isBlank() ||
                         password.isBlank() ||
-                        (type == UserType.STUDENT && registration.classIds.isEmpty())
+                        registration.photoBase64.isBlank() ||
+                        (type == UserType.STUDENT && (
+                            registration.classIds.isEmpty() ||
+                            registration.dateOfBirth.isBlank() ||
+                            registration.school.isBlank() ||
+                            registration.grade.isBlank()
+                        ))
                     ) {
-                        showError(
-                            if (sinhala) {
-                                "සියලු තොරතුරු ඇතුළත් කරන්න."
-                            } else {
-                                "Please complete all fields."
-                            }
-                        )
+                        val validationMessage = when {
+                            registration.photoBase64.isBlank() -> if (sinhala) "Profile Photo එකක් තෝරන්න." else "Please select a profile photo."
+                            type == UserType.STUDENT && registration.classIds.isEmpty() -> if (sinhala) "අවම වශයෙන් එක් පන්තියක් තෝරන්න." else "Select at least one active class."
+                            type == UserType.STUDENT -> if (sinhala) "උපන් දිනය, පාසල සහ ශ්‍රේණිය ඇතුළත් කරන්න." else "Enter Date of Birth, School and Grade."
+                            else -> if (sinhala) "සියලු තොරතුරු ඇතුළත් කරන්න." else "Please complete all fields."
+                        }
+                        showError(validationMessage)
                     } else if (password.length < 6) {
                         showError(
                             if (sinhala) {
