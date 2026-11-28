@@ -399,6 +399,7 @@ private fun UnikidsApp() {
                 sinhala = sinhala,
                 student = false,
                 userName = currentUserName,
+                token = sessionToken,
                 onLanguageChange = { selected ->
                     language = if (selected) AppLanguage.SINHALA else AppLanguage.ENGLISH
                 },
@@ -1181,10 +1182,24 @@ private fun DashboardScreen(
     sinhala: Boolean,
     student: Boolean,
     userName: String,
+    token: String,
     onLanguageChange: (Boolean) -> Unit,
     onOpen: (Page) -> Unit,
     onLogout: () -> Unit
 ) {
+    var dashboardData by remember(token) { mutableStateOf<JSONObject?>(null) }
+    var dashboardLoading by remember(token) { mutableStateOf(true) }
+
+    LaunchedEffect(token) {
+        dashboardLoading = true
+        val result = sendApiRequest(JSONObject().apply {
+            put("action", "getTeacherDashboard")
+            put("token", token)
+        })
+        dashboardData = if (result.success) result.response else null
+        dashboardLoading = false
+    }
+
     val items = if (student) {
         listOf(
             (if (sinhala) "මගේ පන්ති" else "My Classes") to Page.Classes,
@@ -1257,7 +1272,47 @@ private fun DashboardScreen(
             )
         }
 
-        Spacer(Modifier.height(20.dp))
+        Spacer(Modifier.height(14.dp))
+
+        if (dashboardLoading) {
+            Box(Modifier.fillMaxWidth().padding(12.dp), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(color = Purple)
+            }
+        } else if (dashboardData != null) {
+            val stats = listOf(
+                (if (sinhala) "පන්ති" else "Classes") to (dashboardData?.optJSONArray("classes")?.length() ?: 0),
+                (if (sinhala) "කාලසටහන්" else "Schedules") to (dashboardData?.optJSONArray("schedules")?.length() ?: 0),
+                (if (sinhala) "Zoom Links" else "Zoom Links") to (dashboardData?.optJSONArray("zoomLinks")?.length() ?: 0),
+                (if (sinhala) "වීඩියෝ පාඩම්" else "Video Lessons") to (dashboardData?.optJSONArray("videoLessons")?.length() ?: 0)
+            )
+            stats.chunked(2).forEach { pair ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    pair.forEach { (label, count) ->
+                        Card(
+                            modifier = Modifier.weight(1f).padding(vertical = 4.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFFF8F5FC)),
+                            shape = RoundedCornerShape(15.dp)
+                        ) {
+                            Column(Modifier.fillMaxWidth().padding(13.dp)) {
+                                Text(count.toString(), color = Purple, fontSize = 23.sp, fontWeight = FontWeight.ExtraBold)
+                                Text(label, color = DarkPurple, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                            }
+                        }
+                    }
+                }
+            }
+        } else {
+            Text(
+                if (sinhala) "දත්ත ලබාගත නොහැක." else "Dashboard data is currently unavailable.",
+                color = Color.Gray,
+                fontSize = 12.sp
+            )
+        }
+
+        Spacer(Modifier.height(10.dp))
 
         items.forEachIndexed { index, item ->
             Card(
