@@ -1193,10 +1193,12 @@ private fun DashboardScreen(
         )
     } else {
         listOf(
+            (if (sinhala) "මගේ පන්ති" else "My Classes") to Page.Classes,
             (if (sinhala) "කාලසටහන් කළමනාකරණය" else "Manage Schedules") to Page.Schedule,
             (if (sinhala) "Zoom Links" else "Manage Zoom Links") to Page.Zoom,
             (if (sinhala) "වීඩියෝ පාඩම්" else "Manage Video Lessons") to Page.Lessons,
             (if (sinhala) "අධ්‍යයන ද්‍රව්‍ය" else "Manage Study Materials") to Page.Materials,
+            (if (sinhala) "දැනුම්දීම්" else "Notifications") to Page.Notifications,
             (if (sinhala) "මගේ පැතිකඩ" else "My Profile") to Page.Profile
         )
     }
@@ -1583,10 +1585,39 @@ private fun ConnectedFeatureScreen(
         } else if (error.isNotBlank()) {
             Text(error, color = Red, fontSize = 14.sp)
         } else if (page == Page.Progress) {
-            val user = profileDataForProgress(payload)
             Text(
-                if (sinhala) "ඔබේ ඉගෙනුම් ප්‍රගතිය යාවත්කාලීන වන විට මෙහි පෙන්වනු ඇත." else "Your learning progress will appear here when records are available.",
-                color = DarkPurple
+                if (sinhala) "ඔබට ලබාදී ඇති ඉගෙනුම් සම්පත්" else "Your Learning Resources",
+                color = DarkPurple,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+            Spacer(Modifier.height(12.dp))
+            val metrics = listOf(
+                (if (sinhala) "පන්ති" else "Classes") to (payload?.optJSONArray("classes")?.length() ?: 0),
+                (if (sinhala) "කාලසටහන්" else "Schedules") to (payload?.optJSONArray("schedules")?.length() ?: 0),
+                (if (sinhala) "වීඩියෝ පාඩම්" else "Video Lessons") to (payload?.optJSONArray("videoLessons")?.length() ?: 0),
+                (if (sinhala) "අධ්‍යයන ද්‍රව්‍ය" else "Study Materials") to (payload?.optJSONArray("studyMaterials")?.length() ?: 0)
+            )
+            metrics.forEach { (label, count) ->
+                Card(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 5.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFF8F5FC)),
+                    shape = RoundedCornerShape(15.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(label, color = DarkPurple, fontWeight = FontWeight.SemiBold)
+                        Text(count.toString(), color = Purple, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold)
+                    }
+                }
+            }
+            Text(
+                if (sinhala) "මෙම සංඛ්‍යා අනුමත කර ඔබට ලබාදී ඇති සම්පත් ගණන පෙන්වයි." else "These counts show approved learning resources currently available to your account.",
+                color = Color.Gray,
+                fontSize = 12.sp
             )
         } else {
             if (submissionMessage.isNotBlank()) {
@@ -1885,8 +1916,6 @@ private fun TeacherSubmissionForm(
     }
 }
 
-
-private fun profileDataForProgress(payload: JSONObject?): JSONObject? = payload
 
 @Composable
 private fun ConnectedRecordCard(
