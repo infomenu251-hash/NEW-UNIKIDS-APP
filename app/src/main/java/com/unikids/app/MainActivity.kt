@@ -594,22 +594,34 @@ private fun playVoiceAsset(
     context: android.content.Context,
     fileName: String
 ) {
-    runCatching {
-        val mediaPlayer = MediaPlayer()
-        val asset = context.assets.openFd("voices/$fileName")
-        mediaPlayer.setDataSource(
-            asset.fileDescriptor,
-            asset.startOffset,
-            asset.length
-        )
-        asset.close()
-        mediaPlayer.setOnCompletionListener { player -> player.release() }
-        mediaPlayer.setOnErrorListener { player, _, _ ->
-            player.release()
-            true
+    val appContext = context.applicationContext
+    kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
+        var temporaryFile: java.io.File? = null
+        var player: MediaPlayer? = null
+        try {
+            // Copy to cache so playback works even if Android compresses WAV assets.
+            temporaryFile = java.io.File.createTempFile("unikids_voice_", ".wav", appContext.cacheDir)
+            appContext.assets.open("voices/$fileName").use { input ->
+                temporaryFile.outputStream().use { output -> input.copyTo(output) }
+            }
+            player = MediaPlayer()
+            val activePlayer = player
+            activePlayer.setDataSource(temporaryFile.absolutePath)
+            activePlayer.setOnCompletionListener {
+                it.release()
+                temporaryFile.delete()
+            }
+            activePlayer.setOnErrorListener { mp, _, _ ->
+                mp.release()
+                temporaryFile.delete()
+                true
+            }
+            activePlayer.setOnPreparedListener { it.start() }
+            activePlayer.prepareAsync()
+        } catch (_: Exception) {
+            player?.release()
+            temporaryFile?.delete()
         }
-        mediaPlayer.prepare()
-        mediaPlayer.start()
     }
 }
 
@@ -1690,7 +1702,11 @@ private fun ProfileScreen(
                     ProfileInfoRow(if (sinhala) "දුරකථන අංකය" else "Mobile Number", profile.optString("phone"))
                     ProfileInfoRow(if (sinhala) "ලිපිනය" else "Address", profile.optString("address"))
                     ProfileInfoRow(if (sinhala) "විද්‍යුත් තැපෑල" else "Email", profile.optString("email"))
-                    ProfileInfoRow(if (sinhala) "තත්ත්වය" else "Account Status", profile.optString("status"))
+                    ProfileStatusRow(
+                        label = if (sinhala) "තත්ත්වය" else "Account Status",
+                        status = profile.optString("status"),
+                        sinhala = sinhala
+                    )
 
                     if (userType.equals("STUDENT", ignoreCase = true)) {
                         ProfileInfoRow(if (sinhala) "උපන් දිනය" else "Date of Birth", profile.optString("dateOfBirth"))
@@ -1774,6 +1790,32 @@ private fun RemoteProfileImage(
                 fontSize = 42.sp,
                 fontWeight = FontWeight.ExtraBold
             )
+        }
+    }
+}
+
+@Composable
+private fun ProfileStatusRow(
+    label: String,
+    status: String,
+    sinhala: Boolean
+) {
+    if (status.isNotBlank() && status != "null") {
+        val normalized = status.trim().uppercase()
+        val (background, foreground, display) = when (normalized) {
+            "PENDING" -> Triple(Color(0xFFFFF1D6), Color(0xFF9A5700), if (sinhala) "අනුමැතිය බලාපොරොත්තුවෙන්" else "PENDING")
+            "APPROVED" -> Triple(Color(0xFFE4F5E9), Color(0xFF16723A), if (sinhala) "අනුමතයි" else "APPROVED")
+            "REJECTED" -> Triple(Color(0xFFFFE7E7), Color(0xFFB42318), if (sinhala) "ප්‍රතික්ෂේපයි" else "REJECTED")
+            "ACTIVE" -> Triple(Color(0xFFE5F1FF), Color(0xFF175CD3), if (sinhala) "සක්‍රියයි" else "ACTIVE")
+            "BLOCKED" -> Triple(Color(0xFFF0F0F0), Color(0xFF555555), if (sinhala) "අවහිර කර ඇත" else "BLOCKED")
+            else -> Triple(Color(0xFFF0F0F0), DarkPurple, status)
+        }
+        Column(Modifier.fillMaxWidth().padding(vertical = 7.dp)) {
+            Text(label, color = Blue, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+            Card(shape = RoundedCornerShape(50.dp), colors = CardDefaults.cardColors(containerColor = background), elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)) {
+                Text(display, modifier = Modifier.padding(horizontal = 13.dp, vertical = 7.dp), color = foreground, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            }
+            Divider(color = Color(0xFFE5DDED), thickness = 1.dp)
         }
     }
 }
@@ -2249,11 +2291,11 @@ private fun ConnectedRecordCard(
 ) {
     val preferredKeys = when (page) {
         Page.Classes -> listOf("ClassName", "className", "Subject", "subject", "Grade", "grade", "ClassID", "classId")
-        Page.Schedule -> listOf("className", "ClassName", "classDate", "ClassDate", "ScheduleDate", "date", "startTime", "StartTime", "endTime", "EndTime", "description", "Description", "status", "Status")
-        Page.Zoom -> listOf("className", "ClassName", "linkId", "LinkID", "classDate", "ClassDate", "startTime", "StartTime", "status", "Status")
-        Page.Lessons -> listOf("title", "Title", "videoNumber", "VideoID", "subject", "Subject", "description", "Description", "status", "Status")
-        Page.Materials -> listOf("title", "Title", "subject", "Subject", "description", "Description", "status", "Status")
-        Page.Payments -> listOf("paymentDate", "PaymentDate", "amount", "Amount", "paymentType", "PaymentType", "reference", "Reference", "status", "Status", "receiptNumber", "ReceiptNumber", "PaymentID", "InstallmentID", "DueDate")
+        Page.Schedule -> listOf("className", "ClassName", "classDate", "ClassDate", "ScheduleDate", "date", "startTime", "StartTime", "endTime", "EndTime", "description", "Description")
+        Page.Zoom -> listOf("className", "ClassName", "linkId", "LinkID", "classDate", "ClassDate", "startTime", "StartTime")
+        Page.Lessons -> listOf("title", "Title", "videoNumber", "VideoID", "subject", "Subject", "description", "Description")
+        Page.Materials -> listOf("title", "Title", "subject", "Subject", "description", "Description")
+        Page.Payments -> listOf("paymentDate", "PaymentDate", "amount", "Amount", "paymentType", "PaymentType", "reference", "Reference", "receiptNumber", "ReceiptNumber", "PaymentID", "InstallmentID", "DueDate")
         Page.Notifications -> listOf("title", "Title", "message", "Message", "createdDate", "CreatedDate")
         else -> emptyList()
     }
@@ -2285,6 +2327,23 @@ private fun ConnectedRecordCard(
                 fontWeight = FontWeight.Bold,
                 fontSize = 16.sp
             )
+            val statusValue = listOf("ApprovalStatus", "approvalStatus", "Status", "status")
+                .firstNotNullOfOrNull { key -> item.optString(key, "").trim().takeIf { it.isNotBlank() && it != "null" } }
+            if (statusValue != null) {
+                Spacer(Modifier.height(7.dp))
+                val normalizedStatus = statusValue.uppercase()
+                val statusColors = when (normalizedStatus) {
+                    "PENDING" -> Triple(Color(0xFFFFF1D6), Color(0xFF9A5700), if (sinhala) "අනුමැතිය බලාපොරොත්තුවෙන්" else "PENDING")
+                    "APPROVED" -> Triple(Color(0xFFE4F5E9), Color(0xFF16723A), if (sinhala) "අනුමතයි" else "APPROVED")
+                    "REJECTED" -> Triple(Color(0xFFFFE7E7), Color(0xFFB42318), if (sinhala) "ප්‍රතික්ෂේපයි" else "REJECTED")
+                    "ACTIVE" -> Triple(Color(0xFFE5F1FF), Color(0xFF175CD3), if (sinhala) "සක්‍රියයි" else "ACTIVE")
+                    "BLOCKED" -> Triple(Color(0xFFF0F0F0), Color(0xFF555555), if (sinhala) "අවහිර කර ඇත" else "BLOCKED")
+                    else -> Triple(Color(0xFFF0F0F0), DarkPurple, statusValue)
+                }
+                Card(shape = RoundedCornerShape(50.dp), colors = CardDefaults.cardColors(containerColor = statusColors.first), elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)) {
+                    Text(statusColors.third, modifier = Modifier.padding(horizontal = 13.dp, vertical = 7.dp), color = statusColors.second, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                }
+            }
             values.drop(1).forEach { (key, value) ->
                 val label = key.replace(Regex("([a-z])([A-Z])"), "$1 $2")
                 Text("$label: $value", color = DarkPurple, fontSize = 13.sp, modifier = Modifier.padding(top = 5.dp))
