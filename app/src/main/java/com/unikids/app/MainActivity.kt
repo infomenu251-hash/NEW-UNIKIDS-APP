@@ -5,8 +5,11 @@ import android.os.Bundle
 import android.graphics.BitmapFactory
 import android.media.MediaPlayer
 import android.net.Uri
+import android.util.Base64
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -62,6 +65,13 @@ private data class ApiResult(
     val userName: String = "",
     val profile: JSONObject? = null,
     val response: JSONObject? = null
+)
+
+private data class RegistrationData(
+    val type: UserType, val fullName: String, val phone: String, val address: String,
+    val password: String, val email: String, val dateOfBirth: String, val school: String,
+    val grade: String, val classIds: List<String>, val subject: String,
+    val photoBase64: String, val photoMimeType: String, val photoFileName: String
 )
 
 private suspend fun sendApiRequest(data: JSONObject): ApiResult {
@@ -236,6 +246,18 @@ private fun UnikidsApp() {
                                 put("action", action)
                                 put("phone", mobile.trim())
                                 put("password", password)
+                                if (registration.email.isNotBlank()) put("email", registration.email)
+                                if (type == UserType.STUDENT) {
+                                    put("dateOfBirth", registration.dateOfBirth)
+                                    put("school", registration.school)
+                                    put("grade", registration.grade)
+                                    put("classIds", org.json.JSONArray(registration.classIds))
+                                } else if (registration.subject.isNotBlank()) put("subject", registration.subject)
+                                if (registration.photoBase64.isNotBlank()) {
+                                    put("photoBase64", registration.photoBase64)
+                                    put("photoMimeType", registration.photoMimeType)
+                                    put("photoFileName", registration.photoFileName)
+                                }
                             }
 
                             val result = sendApiRequest(request)
@@ -268,12 +290,18 @@ private fun UnikidsApp() {
                     apiMessage = ""
                     page = Page.Login
                 },
-                onSubmit = { type, name, mobile, address, password ->
+                onSubmit = { registration ->
+                    val type = registration.type
+                    val name = registration.fullName
+                    val mobile = registration.phone
+                    val address = registration.address
+                    val password = registration.password
                     if (
                         name.isBlank() ||
                         mobile.isBlank() ||
                         address.isBlank() ||
-                        password.isBlank()
+                        password.isBlank() ||
+                        (type == UserType.STUDENT && registration.classIds.isEmpty())
                     ) {
                         showError(
                             if (sinhala) {
