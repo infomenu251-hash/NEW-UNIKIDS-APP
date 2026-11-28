@@ -244,7 +244,7 @@ private fun UnikidsApp() {
         color = White
     ) {
         when (page) {
-            Page.Splash -> SplashScreen()
+            Page.Splash -> SplashScreen(sinhala = sinhala)
 
             Page.Login -> LoginScreen(
                 sinhala = sinhala,
@@ -668,7 +668,7 @@ private fun AssetImage(
 }
 
 @Composable
-private fun SplashScreen() {
+private fun SplashScreen(sinhala: Boolean) {
     var progress by remember { mutableFloatStateOf(0f) }
 
     LaunchedEffect(Unit) {
@@ -701,7 +701,7 @@ private fun SplashScreen() {
         )
 
         Text(
-            "Learning Made Fun",
+            if (sinhala) "ඉගෙනීම සතුටින්" else "Learning Made Fun",
             color = DarkPurple,
             fontSize = 15.sp,
             fontWeight = FontWeight.Medium
