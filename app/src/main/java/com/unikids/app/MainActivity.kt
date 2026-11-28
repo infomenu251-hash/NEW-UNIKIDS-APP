@@ -90,35 +90,63 @@ private data class RegistrationData(
 
 private suspend fun sendApiRequest(data: JSONObject): ApiResult {
     return withContext(Dispatchers.IO) {
-        var connection: HttpURLConnection? = null
+        var postConnection: HttpURLConnection? = null
+        var responseConnection: HttpURLConnection? = null
 
         try {
-            connection = URL(API_URL).openConnection() as HttpURLConnection
-            connection.requestMethod = "POST"
-            connection.connectTimeout = 30000
-            connection.readTimeout = 30000
-            connection.doOutput = true
-            connection.instanceFollowRedirects = true
-            connection.setRequestProperty(
+            // Apps Script ContentService responds to POST with HTTP 302 and
+            // places the JSON body at the script.googleusercontent.com URL.
+            // Handle that redirect explicitly so Android never tries to
+            // re-submit the POST body as a GET (or reads an HTML wrapper).
+            postConnection = URL(API_URL).openConnection() as HttpURLConnection
+            postConnection.requestMethod = "POST"
+            postConnection.connectTimeout = 30000
+            postConnection.readTimeout = 30000
+            postConnection.doOutput = true
+            postConnection.instanceFollowRedirects = false
+            postConnection.setRequestProperty(
                 "Content-Type",
                 "application/json; charset=utf-8"
             )
-            connection.setRequestProperty("Accept", "application/json")
+            postConnection.setRequestProperty("Accept", "application/json")
 
-            connection.outputStream.use { output ->
+            postConnection.outputStream.use { output ->
                 output.write(data.toString().toByteArray(Charsets.UTF_8))
+                output.flush()
             }
 
-            val responseCode = connection.responseCode
-            val responseStream = if (responseCode in 200..299) {
-                connection.inputStream
+            val postStatus = postConnection.responseCode
+            val redirectLocation = postConnection.getHeaderField("Location")
+
+            val responseText: String
+            if (postStatus in 300..399 && !redirectLocation.isNullOrBlank()) {
+                postConnection.disconnect()
+                postConnection = null
+
+                responseConnection = URL(redirectLocation).openConnection() as HttpURLConnection
+                responseConnection.requestMethod = "GET"
+                responseConnection.connectTimeout = 30000
+                responseConnection.readTimeout = 30000
+                responseConnection.instanceFollowRedirects = true
+                responseConnection.setRequestProperty("Accept", "application/json")
+
+                val finalStatus = responseConnection.responseCode
+                val finalStream = if (finalStatus in 200..299) {
+                    responseConnection.inputStream
+                } else {
+                    responseConnection.errorStream
+                }
+                responseText = finalStream?.bufferedReader()?.use { it.readText() }
+                    ?: throw Exception("Empty API response after Google redirect (HTTP $finalStatus).")
             } else {
-                connection.errorStream
+                val responseStream = if (postStatus in 200..299) {
+                    postConnection.inputStream
+                } else {
+                    postConnection.errorStream
+                }
+                responseText = responseStream?.bufferedReader()?.use { it.readText() }
+                    ?: throw Exception("Empty API response (HTTP $postStatus).")
             }
-
-            val responseText = responseStream?.bufferedReader()?.use {
-                it.readText()
-            } ?: throw Exception("Empty server response.")
 
             val json = JSONObject(responseText)
             val user = json.optJSONObject("user")
@@ -141,7 +169,8 @@ private suspend fun sendApiRequest(data: JSONObject): ApiResult {
                 message = e.message ?: "Unable to connect to server."
             )
         } finally {
-            connection?.disconnect()
+            postConnection?.disconnect()
+            responseConnection?.disconnect()
         }
     }
 }
