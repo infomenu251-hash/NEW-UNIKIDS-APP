@@ -2,12 +2,16 @@
 package com.unikids.app
 
 import android.os.Bundle
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
 import android.graphics.BitmapFactory
 import android.media.MediaPlayer
 import android.net.Uri
 import android.util.Base64
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.RepeatMode
@@ -42,6 +46,10 @@ import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.TimeZone
 
 // NEW UNIKIDS APP - LIVE BACKEND
 private const val API_URL =
@@ -161,6 +169,33 @@ class MainActivity : ComponentActivity() {
 private fun UnikidsApp() {
     val context = androidx.compose.ui.platform.LocalContext.current
     var page by remember { mutableStateOf(Page.Splash) }
+    val navigationHistory = remember { mutableStateListOf<Page>() }
+    var showExitConfirmation by remember { mutableStateOf(false) }
+
+    fun navigateTo(destination: Page) {
+        if (destination != page) {
+            navigationHistory.add(page)
+            page = destination
+        }
+    }
+
+    fun navigateBack() {
+        if (navigationHistory.isNotEmpty()) {
+            page = navigationHistory.removeAt(navigationHistory.lastIndex)
+        } else {
+            showExitConfirmation = true
+        }
+    }
+
+    fun resetToLogin() {
+        navigationHistory.clear()
+        page = Page.Login
+    }
+
+    BackHandler(enabled = page != Page.Splash) {
+        if (page == Page.Login && navigationHistory.isEmpty()) showExitConfirmation = true
+        else navigateBack()
+    }
     var language by remember {
         mutableStateOf(
             if (context.getSharedPreferences("unikids_settings", android.content.Context.MODE_PRIVATE)
@@ -255,7 +290,7 @@ private fun UnikidsApp() {
                 },
                 onRegister = {
                     apiMessage = ""
-                    page = Page.Register
+                    navigateTo(Page.Register)
                 },
                 onLogin = { type, mobile, password ->
                     if (mobile.isBlank() || password.isBlank()) {
@@ -292,11 +327,11 @@ private fun UnikidsApp() {
                                 userType = type
                                 apiMessage = ""
 
-                                page = if (type == UserType.STUDENT) {
+                                navigateTo(if (type == UserType.STUDENT) {
                                     Page.StudentHome
                                 } else {
                                     Page.TeacherHome
-                                }
+                                })
                             } else {
                                 showError(result.message)
                             }
@@ -311,7 +346,7 @@ private fun UnikidsApp() {
                 message = apiMessage,
                 onBack = {
                     apiMessage = ""
-                    page = Page.Login
+                    navigateBack()
                 },
                 onSubmit = { registration ->
                     val type = registration.type
@@ -390,7 +425,7 @@ private fun UnikidsApp() {
                                     else -> "english_voiceover_forteachers(2).wav"
                                 }
                                 playVoiceAsset(context, voiceFile)
-                                page = Page.RegistrationSuccess
+                                navigateTo(Page.RegistrationSuccess)
                             } else {
                                 showError(result.message)
                             }
@@ -412,7 +447,7 @@ private fun UnikidsApp() {
                     setLanguage(if (selected) AppLanguage.SINHALA else AppLanguage.ENGLISH)
                 },
                 onNavigate = { destination ->
-                    page = when (destination) {
+                    navigateTo(when (destination) {
                         "home" -> Page.StudentHome
                         "classes" -> Page.Classes
                         "schedule" -> Page.Schedule
@@ -423,7 +458,7 @@ private fun UnikidsApp() {
                         "profile" -> Page.Profile
                         "progress" -> Page.Progress
                         else -> Page.StudentHome
-                    }
+                    })
                 },
                 onLogout = {
                     logoutFromApp(scope, sessionToken) {
@@ -432,7 +467,7 @@ private fun UnikidsApp() {
                         profileData = null
                         profileError = ""
                         apiMessage = ""
-                        page = Page.Login
+                        resetToLogin()
                     }
                 }
             )
@@ -446,7 +481,7 @@ private fun UnikidsApp() {
                 onLanguageChange = { selected ->
                     setLanguage(if (selected) AppLanguage.SINHALA else AppLanguage.ENGLISH)
                 },
-                onOpen = { page = it },
+                onOpen = { navigateTo(it) },
                 onLogout = {
                     logoutFromApp(scope, sessionToken) {
                         sessionToken = ""
@@ -454,7 +489,7 @@ private fun UnikidsApp() {
                         profileData = null
                         profileError = ""
                         apiMessage = ""
-                        page = Page.Login
+                        resetToLogin()
                     }
                 }
             )
@@ -468,6 +503,7 @@ private fun UnikidsApp() {
                     } else {
                         "Registration successful. Please wait for Admin approval."
                     }
+                    navigationHistory.clear()
                     page = Page.Login
                 }
             )
@@ -477,13 +513,7 @@ private fun UnikidsApp() {
                 loading = profileLoading,
                 message = profileError,
                 sinhala = sinhala,
-                onBack = {
-                    page = if (userType == UserType.STUDENT) {
-                        Page.StudentHome
-                    } else {
-                        Page.TeacherHome
-                    }
-                }
+                onBack = { navigateBack() }
             )
 
             else -> ConnectedFeatureScreen(
@@ -491,18 +521,45 @@ private fun UnikidsApp() {
                 sinhala = sinhala,
                 userType = userType,
                 token = sessionToken,
-                onBack = {
-                    page = if (userType == UserType.STUDENT) {
-                        Page.StudentHome
-                    } else {
-                        Page.TeacherHome
-                    }
-                }
+                onBack = { navigateBack() }
             )
         }
     }
+
+    if (showExitConfirmation) {
+        AlertDialog(
+            onDismissRequest = { showExitConfirmation = false },
+            title = { Text(if (sinhala) "ඇප් එකෙන් ඉවත් වීමට අවශ්‍යද?" else "Exit NEW UNIKIDS APP?") },
+            text = {
+                Text(if (sinhala) "ඔබට ඇත්තටම ඇප් එක වසා ඉවත් වීමට අවශ්‍යද?" else "Are you sure you want to close the app?")
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    showExitConfirmation = false
+                    context.findActivity()?.finish()
+                }) { Text(if (sinhala) "ඔව්, ඉවත් වන්න" else "Yes, Exit", color = Red) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showExitConfirmation = false }) {
+                    Text(if (sinhala) "නැහැ" else "Cancel", color = Purple)
+                }
+            },
+            containerColor = White,
+            titleContentColor = Purple,
+            textContentColor = DarkPurple
+        )
+    }
 }
 
+
+private fun Context.findActivity(): Activity? {
+    var current: Context = this
+    while (true) {
+        if (current is Activity) return current
+        if (current !is ContextWrapper) return null
+        current = current.baseContext
+    }
+}
 
 private fun playVoiceAsset(
     context: android.content.Context,
@@ -968,6 +1025,7 @@ private fun LoginScreen(
 }
 
 @Composable
+@OptIn(ExperimentalMaterial3Api::class)
 private fun RegistrationScreen(
     sinhala: Boolean,
     loading: Boolean,
@@ -985,6 +1043,10 @@ private fun RegistrationScreen(
     var showRegistrationPassword by remember { mutableStateOf(false) }
     var email by remember { mutableStateOf("") }
     var dateOfBirth by remember { mutableStateOf("") }
+    var showDatePicker by remember { mutableStateOf(false) }
+    val datePickerState = rememberDatePickerState()
+    var classesExpanded by remember { mutableStateOf(false) }
+    var subjectExpanded by remember { mutableStateOf(false) }
     var school by remember { mutableStateOf("") }
     var grade by remember { mutableStateOf("") }
     var subject by remember { mutableStateOf("") }
@@ -1048,9 +1110,7 @@ private fun RegistrationScreen(
             .verticalScroll(rememberScrollState())
             .padding(22.dp)
     ) {
-        TextButton(onClick = onBack) {
-            Text(if (sinhala) "← ආපසු" else "← Back")
-        }
+        LargeBackButton(sinhala = sinhala, onClick = onBack)
 
         Row(verticalAlignment = Alignment.CenterVertically) {
             AssetImage(
@@ -1128,34 +1188,97 @@ private fun RegistrationScreen(
         ) { email = it }
 
         if (type == UserType.STUDENT) {
-            FormField(if (sinhala) "උපන් දිනය (YYYY-MM-DD)" else "Date of Birth (YYYY-MM-DD)", dateOfBirth) { dateOfBirth = it }
+            OutlinedTextField(
+                value = dateOfBirth,
+                onValueChange = {},
+                readOnly = true,
+                label = { Text(if (sinhala) "උපන් දිනය" else "Date of Birth") },
+                placeholder = { Text("YYYY-MM-DD") },
+                modifier = Modifier.fillMaxWidth().padding(vertical = 5.dp),
+                singleLine = true,
+                trailingIcon = {
+                    TextButton(onClick = { showDatePicker = true }) { Text("📅") }
+                }
+            )
+            if (showDatePicker) {
+                DatePickerDialog(
+                    onDismissRequest = { showDatePicker = false },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            datePickerState.selectedDateMillis?.let { millis ->
+                                dateOfBirth = SimpleDateFormat("yyyy-MM-dd", Locale.US).apply {
+                                    timeZone = TimeZone.getTimeZone("UTC")
+                                }.format(Date(millis))
+                            }
+                            showDatePicker = false
+                        }) { Text(if (sinhala) "තෝරන්න" else "Select") }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showDatePicker = false }) {
+                            Text(if (sinhala) "අවලංගු කරන්න" else "Cancel")
+                        }
+                    }
+                ) { DatePicker(state = datePickerState) }
+            }
             FormField(if (sinhala) "පාසල" else "School", school) { school = it }
             FormField(if (sinhala) "ශ්‍රේණිය" else "Grade", grade) { grade = it }
             Spacer(Modifier.height(8.dp))
             Text(if (sinhala) "ඔබගේ පන්ති තෝරන්න" else "Select Your Classes", color = Purple, fontWeight = FontWeight.Bold)
             if (classLoadMessage.isNotBlank()) Text(classLoadMessage, color = Red, fontSize = 12.sp)
-            availableClasses.forEach { classItem ->
-                val classId = classItem.optString("ClassID", classItem.optString("classId"))
-                val className = classItem.optString("ClassName", classItem.optString("className"))
-                if (classId.isNotBlank()) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Checkbox(
-                            checked = classId in selectedClassIds,
-                            onCheckedChange = { checked ->
-                                if (checked && classId !in selectedClassIds) selectedClassIds.add(classId)
-                                if (!checked) selectedClassIds.remove(classId)
+            OutlinedButton(onClick = { classesExpanded = true }, modifier = Modifier.fillMaxWidth()) {
+                val selectedNames = availableClasses.filter {
+                    it.optString("ClassID", it.optString("classId")) in selectedClassIds
+                }.map { it.optString("ClassName", it.optString("className", it.optString("ClassID"))) }
+                Text(if (selectedNames.isEmpty()) {
+                    if (sinhala) "පන්ති තෝරන්න" else "Choose Classes"
+                } else selectedNames.joinToString(", "))
+            }
+            DropdownMenu(expanded = classesExpanded, onDismissRequest = { classesExpanded = false }) {
+                availableClasses.forEach { classItem ->
+                    val classId = classItem.optString("ClassID", classItem.optString("classId"))
+                    val className = classItem.optString("ClassName", classItem.optString("className", classId))
+                    if (classId.isNotBlank()) {
+                        DropdownMenuItem(
+                            text = {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Checkbox(
+                                        checked = classId in selectedClassIds,
+                                        onCheckedChange = { checked ->
+                                            if (checked && classId !in selectedClassIds) selectedClassIds.add(classId)
+                                            if (!checked) selectedClassIds.remove(classId)
+                                        }
+                                    )
+                                    Text(className)
+                                }
+                            },
+                            onClick = {
+                                if (classId in selectedClassIds) selectedClassIds.remove(classId)
+                                else selectedClassIds.add(classId)
                             }
                         )
-                        Column {
-                            Text(className.ifBlank { classId }, color = DarkPurple, fontSize = 14.sp)
-                            val subjectName = classItem.optString("Subject")
-                            if (subjectName.isNotBlank()) Text(subjectName, color = Color.Gray, fontSize = 11.sp)
-                        }
                     }
                 }
             }
         } else {
-            FormField(if (sinhala) "විෂය / විශේෂඥතාව" else "Subject / Specialization", subject) { subject = it }
+            Text(if (sinhala) "විෂය / විශේෂඥතාව" else "Subject / Specialization", color = Purple, fontWeight = FontWeight.Bold)
+            OutlinedButton(onClick = { subjectExpanded = true }, modifier = Modifier.fillMaxWidth()) {
+                Text(subject.ifBlank { if (sinhala) "විෂය තෝරන්න" else "Choose Subject" })
+            }
+            DropdownMenu(expanded = subjectExpanded, onDismissRequest = { subjectExpanded = false }) {
+                listOf(
+                    "Sinhala", "Tamil", "English", "Mathematics", "Science", "History",
+                    "Geography", "Civic Education", "Buddhism", "Christianity", "Hinduism",
+                    "Islam", "Health and Physical Education", "Information and Communication Technology",
+                    "Art", "Music", "Dancing", "Drama and Theatre", "Business and Accounting Studies",
+                    "Entrepreneurship Studies", "Agriculture and Food Technology", "Home Economics",
+                    "Practical and Technical Skills", "AI AND ROBOTICS", "ANNOUNCING COURSE"
+                ).forEach { option ->
+                    DropdownMenuItem(text = { Text(option) }, onClick = {
+                        subject = option
+                        subjectExpanded = false
+                    })
+                }
+            }
         }
 
         Spacer(Modifier.height(10.dp))
@@ -1453,6 +1576,18 @@ private fun DashboardScreen(
 
 
 @Composable
+private fun LargeBackButton(sinhala: Boolean, onClick: () -> Unit) {
+    Button(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth().height(52.dp),
+        shape = RoundedCornerShape(14.dp),
+        colors = ButtonDefaults.buttonColors(containerColor = Purple)
+    ) {
+        Text(if (sinhala) "← ආපසු" else "← Back", color = White, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+    }
+}
+
+@Composable
 private fun ProfileScreen(
     profile: JSONObject?,
     loading: Boolean,
@@ -1473,9 +1608,7 @@ private fun ProfileScreen(
             .verticalScroll(rememberScrollState())
             .padding(20.dp)
     ) {
-        TextButton(onClick = onBack) {
-            Text(if (sinhala) "← ආපසු" else "← Back", color = Purple)
-        }
+        LargeBackButton(sinhala = sinhala, onClick = onBack)
 
         Text(
             if (sinhala) "මගේ පැතිකඩ" else "My Profile",
@@ -1706,9 +1839,7 @@ private fun ConnectedFeatureScreen(
             .verticalScroll(rememberScrollState())
             .padding(20.dp)
     ) {
-        TextButton(onClick = onBack) {
-            Text(if (sinhala) "← ආපසු" else "← Back", color = Purple)
-        }
+        LargeBackButton(sinhala = sinhala, onClick = onBack)
         Text(title, color = Purple, fontSize = 25.sp, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(16.dp))
 
