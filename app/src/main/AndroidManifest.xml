@@ -4,6 +4,8 @@
     <application
         android:allowBackup="false"
         android:label="NEW UNIKIDS APP"
+        android:icon="@drawable/unikids_launcher"
+        android:roundIcon="@drawable/unikids_launcher"
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
 
