@@ -1547,6 +1547,26 @@ private fun ConnectedFeatureScreen(
                 )
                 Spacer(Modifier.height(16.dp))
             }
+            if (userType == UserType.STUDENT && page == Page.Payments) {
+                StudentPaymentForm(
+                    token = token,
+                    sinhala = sinhala,
+                    onResult = { result ->
+                        submissionMessage = result.message
+                        if (result.success) refreshKey++
+                    }
+                )
+                Spacer(Modifier.height(16.dp))
+                val installments = payload?.optJSONArray("installments")
+                if (installments != null && installments.length() > 0) {
+                    Text(if (sinhala) "වාරික විස්තර" else "Installments", color = Purple, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                    for (i in 0 until installments.length()) {
+                        val installment = installments.optJSONObject(i) ?: continue
+                        ConnectedRecordCard(installment, Page.Payments, sinhala) { }
+                        Spacer(Modifier.height(8.dp))
+                    }
+                }
+            }
             val array = payload?.optJSONArray(arrayKey)
             if (array == null || array.length() == 0) {
                 Text(
@@ -1569,6 +1589,71 @@ private fun ConnectedFeatureScreen(
                 }
             }
 
+        }
+    }
+}
+
+
+
+@Composable
+private fun StudentPaymentForm(
+    token: String,
+    sinhala: Boolean,
+    onResult: (ApiResult) -> Unit
+) {
+    var amount by remember { mutableStateOf("") }
+    var paymentType by remember { mutableStateOf("Course Fee") }
+    var reference by remember { mutableStateOf("") }
+    var installmentId by remember { mutableStateOf("") }
+    var notes by remember { mutableStateOf("") }
+    var submitting by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFF8F5FC))
+    ) {
+        Column(Modifier.padding(15.dp)) {
+            Text(if (sinhala) "ගෙවීමක් යොමු කරන්න" else "Submit a Payment", color = Purple, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+            OutlinedTextField(amount, { amount = it }, label = { Text(if (sinhala) "මුදල (LKR)" else "Amount (LKR)") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+            OutlinedTextField(paymentType, { paymentType = it }, label = { Text(if (sinhala) "ගෙවීම් වර්ගය" else "Payment Type") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+            OutlinedTextField(reference, { reference = it }, label = { Text(if (sinhala) "බැංකු / ගනුදෙනු යොමුව" else "Bank / Transaction Reference") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+            OutlinedTextField(installmentId, { installmentId = it }, label = { Text(if (sinhala) "වාරික අංකය (තිබේ නම්)" else "Installment ID (optional)") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+            OutlinedTextField(notes, { notes = it }, label = { Text(if (sinhala) "සටහන්" else "Notes") }, modifier = Modifier.fillMaxWidth())
+            Spacer(Modifier.height(10.dp))
+            Text(if (sinhala) "ගෙවීම පරිපාලක විසින් තහවුරු කළ පසු යාවත්කාලීන වේ." else "Your payment remains pending until verified by Admin.", color = Color.Gray, fontSize = 12.sp)
+            Spacer(Modifier.height(10.dp))
+            Button(
+                onClick = {
+                    val parsed = amount.toDoubleOrNull()
+                    if (parsed == null || parsed <= 0.0) {
+                        onResult(ApiResult(false, if (sinhala) "නිවැරදි මුදලක් ඇතුළත් කරන්න." else "Enter a valid positive amount."))
+                    } else {
+                        submitting = true
+                        scope.launch {
+                            val request = JSONObject().apply {
+                                put("action", "submitPayment")
+                                put("token", token)
+                                put("amount", parsed)
+                                if (paymentType.isNotBlank()) put("paymentType", paymentType)
+                                if (reference.isNotBlank()) put("reference", reference)
+                                if (installmentId.isNotBlank()) put("installmentId", installmentId)
+                                if (notes.isNotBlank()) put("notes", notes)
+                            }
+                            val result = sendApiRequest(request)
+                            submitting = false
+                            onResult(result)
+                        }
+                    }
+                },
+                enabled = !submitting,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(containerColor = Purple)
+            ) {
+                if (submitting) CircularProgressIndicator(Modifier.size(18.dp), color = White, strokeWidth = 2.dp)
+                else Text(if (sinhala) "පරිපාලක තහවුරු කිරීම සඳහා යොමු කරන්න" else "Submit for Admin Verification")
+            }
         }
     }
 }
