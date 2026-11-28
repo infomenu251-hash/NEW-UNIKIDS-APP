@@ -60,6 +60,8 @@ fun StudentDashboardScreen(
     availableSchedules: Int = 0,
     availableVideos: Int = 0,
     availableMaterials: Int = 0,
+    latestNotificationTitle: String = "",
+    latestNotificationMessage: String = "",
     isSinhala: Boolean = true,
     onLanguageChange: (Boolean) -> Unit = {},
     onNavigate: (String) -> Unit = {},
@@ -393,13 +395,17 @@ fun StudentDashboardScreen(
                     Spacer(Modifier.width(12.dp))
                     Column {
                         Text(
-                            if (isSinhala) "ඔබේ අලුත් දැනුම්දීම් මෙහි පෙන්වයි." else "Your latest notifications will appear here.",
+                            latestNotificationTitle.ifBlank {
+                                if (isSinhala) "ඔබේ අලුත් දැනුම්දීම් මෙහි පෙන්වයි." else "Your latest notifications will appear here."
+                            },
                             color = UniDarkPurple,
                             fontWeight = FontWeight.SemiBold,
                             fontSize = 13.sp
                         )
                         Text(
-                            if (isSinhala) "දැනුම්දීම් බැලීමට මෙතැන ඔබන්න." else "Tap here to view notifications.",
+                            latestNotificationMessage.ifBlank {
+                                if (isSinhala) "දැනුම්දීම් බැලීමට මෙතැන ඔබන්න." else "Tap here to view notifications."
+                            },
                             color = Color.Gray,
                             fontSize = 11.sp
                         )
