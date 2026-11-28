@@ -17,6 +17,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -56,7 +57,8 @@ private data class ApiResult(
     val message: String,
     val token: String = "",
     val userId: String = "",
-    val userName: String = ""
+    val userName: String = "",
+    val profile: JSONObject? = null
 )
 
 private suspend fun sendApiRequest(data: JSONObject): ApiResult {
@@ -102,7 +104,8 @@ private suspend fun sendApiRequest(data: JSONObject): ApiResult {
                 ),
                 token = json.optString("token", ""),
                 userId = user?.optString("userId", "") ?: "",
-                userName = user?.optString("fullName", "") ?: ""
+                userName = user?.optString("fullName", "") ?: "",
+                profile = user
             )
         } catch (e: Exception) {
             ApiResult(
@@ -143,6 +146,9 @@ private fun UnikidsApp() {
     var apiMessage by remember { mutableStateOf("") }
     var loading by remember { mutableStateOf(false) }
     var sessionToken by remember { mutableStateOf("") }
+    var profileData by remember { mutableStateOf<JSONObject?>(null) }
+    var profileLoading by remember { mutableStateOf(false) }
+    var profileError by remember { mutableStateOf("") }
 
     val scope = rememberCoroutineScope()
     val sinhala = language == AppLanguage.SINHALA
@@ -150,6 +156,27 @@ private fun UnikidsApp() {
     LaunchedEffect(Unit) {
         delay(7000)
         page = Page.Login
+    }
+
+    LaunchedEffect(page, sessionToken) {
+        if (page == Page.Profile && sessionToken.isNotBlank()) {
+            profileLoading = true
+            profileError = ""
+            val request = JSONObject().apply {
+                put("action", "getProfile")
+                put("token", sessionToken)
+            }
+            val result = sendApiRequest(request)
+            profileLoading = false
+            if (result.success && result.profile != null) {
+                profileData = result.profile
+            } else {
+                profileData = null
+                profileError = result.message.ifBlank {
+                    if (sinhala) "පැතිකඩ තොරතුරු ලබාගත නොහැක." else "Unable to load profile."
+                }
+            }
+        }
     }
 
     fun showError(message: String) {
@@ -318,6 +345,8 @@ private fun UnikidsApp() {
                 onLogout = {
                     logoutFromApp(scope, sessionToken) {
                         sessionToken = ""
+                        profileData = null
+                        profileError = ""
                         apiMessage = ""
                         page = Page.Login
                     }
@@ -332,8 +361,24 @@ private fun UnikidsApp() {
                 onLogout = {
                     logoutFromApp(scope, sessionToken) {
                         sessionToken = ""
+                        profileData = null
+                        profileError = ""
                         apiMessage = ""
                         page = Page.Login
+                    }
+                }
+            )
+
+            Page.Profile -> ProfileScreen(
+                profile = profileData,
+                loading = profileLoading,
+                message = profileError,
+                sinhala = sinhala,
+                onBack = {
+                    page = if (userType == UserType.STUDENT) {
+                        Page.StudentHome
+                    } else {
+                        Page.TeacherHome
                     }
                 }
             )
@@ -923,6 +968,189 @@ private fun DashboardScreen(
             modifier = Modifier.fillMaxWidth()
         ) {
             Text(if (sinhala) "ඉවත් වන්න" else "Logout")
+        }
+    }
+}
+
+
+@Composable
+private fun ProfileScreen(
+    profile: JSONObject?,
+    loading: Boolean,
+    message: String,
+    sinhala: Boolean,
+    onBack: () -> Unit
+) {
+    val fullName = profile?.optString("fullName", "").orEmpty()
+    val photoUrl = profile?.optString("profileImageURL", "").orEmpty()
+    val userType = profile?.optString("userType", "").orEmpty()
+    val classes = profile?.optJSONArray("classes")
+    val assignedClasses = profile?.optJSONArray("assignedClassIDs")
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(White)
+            .verticalScroll(rememberScrollState())
+            .padding(20.dp)
+    ) {
+        TextButton(onClick = onBack) {
+            Text(if (sinhala) "← ආපසු" else "← Back", color = Purple)
+        }
+
+        Text(
+            if (sinhala) "මගේ පැතිකඩ" else "My Profile",
+            color = Purple,
+            fontSize = 26.sp,
+            fontWeight = FontWeight.Bold
+        )
+
+        Spacer(Modifier.height(18.dp))
+
+        if (loading) {
+            Box(
+                modifier = Modifier.fillMaxWidth().padding(35.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(color = Purple)
+            }
+        } else if (profile == null) {
+            Text(
+                message.ifBlank {
+                    if (sinhala) "පැතිකඩ තොරතුරු ලබාගත නොහැක." else "Profile information is unavailable."
+                },
+                color = Red
+            )
+        } else {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(22.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFF8F5FC))
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(20.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    RemoteProfileImage(
+                        imageUrl = photoUrl,
+                        displayName = fullName
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    Text(
+                        fullName.ifBlank { if (sinhala) "නම සඳහන් නැත" else "Name not available" },
+                        color = DarkPurple,
+                        fontSize = 21.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        userType.replaceFirstChar { it.uppercase() },
+                        color = Blue,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Spacer(Modifier.height(14.dp))
+                    ProfileInfoRow(if (sinhala) "දුරකථන අංකය" else "Mobile Number", profile.optString("phone"))
+                    ProfileInfoRow(if (sinhala) "ලිපිනය" else "Address", profile.optString("address"))
+                    ProfileInfoRow(if (sinhala) "විද්‍යුත් තැපෑල" else "Email", profile.optString("email"))
+                    ProfileInfoRow(if (sinhala) "තත්ත්වය" else "Account Status", profile.optString("status"))
+
+                    if (userType.equals("STUDENT", ignoreCase = true)) {
+                        ProfileInfoRow(if (sinhala) "උපන් දිනය" else "Date of Birth", profile.optString("dateOfBirth"))
+                        ProfileInfoRow(if (sinhala) "පාසල" else "School", profile.optString("school"))
+                        ProfileInfoRow(if (sinhala) "ශ්‍රේණිය" else "Grade", profile.optString("grade"))
+                        val classText = buildString {
+                            if (classes != null) {
+                                for (i in 0 until classes.length()) {
+                                    if (isNotEmpty()) append(", ")
+                                    val item = classes.opt(i)
+                                    append(if (item is JSONObject) item.optString("className", item.toString()) else item.toString())
+                                }
+                            }
+                        }
+                        ProfileInfoRow(if (sinhala) "මගේ පන්ති" else "My Classes", classText)
+                    } else {
+                        val classText = buildString {
+                            if (assignedClasses != null) {
+                                for (i in 0 until assignedClasses.length()) {
+                                    if (isNotEmpty()) append(", ")
+                                    append(assignedClasses.optString(i))
+                                }
+                            }
+                        }
+                        ProfileInfoRow(if (sinhala) "පවරා ඇති පන්ති" else "Assigned Classes", classText)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RemoteProfileImage(
+    imageUrl: String,
+    displayName: String
+) {
+    var bitmap by remember(imageUrl) {
+        mutableStateOf<androidx.compose.ui.graphics.ImageBitmap?>(null)
+    }
+
+    LaunchedEffect(imageUrl) {
+        bitmap = if (imageUrl.isBlank()) {
+            null
+        } else {
+            withContext(Dispatchers.IO) {
+                runCatching {
+                    val connection = URL(imageUrl).openConnection() as HttpURLConnection
+                    connection.connectTimeout = 15000
+                    connection.readTimeout = 15000
+                    connection.instanceFollowRedirects = true
+                    try {
+                        connection.inputStream.use { BitmapFactory.decodeStream(it)?.asImageBitmap() }
+                    } finally {
+                        connection.disconnect()
+                    }
+                }.getOrNull()
+            }
+        }
+    }
+
+    if (bitmap != null) {
+        Image(
+            bitmap = bitmap!!,
+            contentDescription = "Profile photo",
+            modifier = Modifier.size(112.dp).clip(RoundedCornerShape(56.dp)),
+            contentScale = ContentScale.Crop
+        )
+    } else {
+        Box(
+            modifier = Modifier
+                .size(112.dp)
+                .clip(RoundedCornerShape(56.dp))
+                .background(Yellow),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                displayName.firstOrNull()?.uppercase() ?: "U",
+                color = Purple,
+                fontSize = 42.sp,
+                fontWeight = FontWeight.ExtraBold
+            )
+        }
+    }
+}
+
+@Composable
+private fun ProfileInfoRow(
+    label: String,
+    value: String
+) {
+    if (value.isNotBlank() && value != "null") {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(vertical = 7.dp)
+        ) {
+            Text(label, color = Blue, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+            Text(value, color = DarkPurple, fontSize = 15.sp)
+            Divider(color = Color(0xFFE5DDED), thickness = 1.dp)
         }
     }
 }
