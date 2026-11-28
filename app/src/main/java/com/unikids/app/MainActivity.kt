@@ -911,13 +911,72 @@ private fun RegistrationScreen(
     loading: Boolean,
     message: String,
     onBack: () -> Unit,
-    onSubmit: (UserType, String, String, String, String) -> Unit
+    onSubmit: (RegistrationData) -> Unit
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val scope = rememberCoroutineScope()
     var type by remember { mutableStateOf(UserType.STUDENT) }
     var name by remember { mutableStateOf("") }
     var mobile by remember { mutableStateOf("") }
     var address by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var email by remember { mutableStateOf("") }
+    var dateOfBirth by remember { mutableStateOf("") }
+    var school by remember { mutableStateOf("") }
+    var grade by remember { mutableStateOf("") }
+    var subject by remember { mutableStateOf("") }
+    var availableClasses by remember { mutableStateOf<List<JSONObject>>(emptyList()) }
+    val selectedClassIds = remember { mutableStateListOf<String>() }
+    var photoBase64 by remember { mutableStateOf("") }
+    var photoMimeType by remember { mutableStateOf("") }
+    var photoFileName by remember { mutableStateOf("") }
+    var photoMessage by remember { mutableStateOf("") }
+    var classLoadMessage by remember { mutableStateOf("") }
+
+    LaunchedEffect(Unit) {
+        val result = sendApiRequest(JSONObject().put("action", "getClasses"))
+        if (result.success) {
+            val array = result.response?.optJSONArray("classes")
+            val list = mutableListOf<JSONObject>()
+            if (array != null) {
+                for (i in 0 until array.length()) array.optJSONObject(i)?.let { list.add(it) }
+            }
+            availableClasses = list
+            if (list.isEmpty()) classLoadMessage = if (sinhala) "දැනට සක්‍රිය පන්ති නොමැත." else "No active classes are available."
+        } else {
+            classLoadMessage = result.message
+        }
+    }
+
+    val photoPicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri != null) {
+            scope.launch {
+                val result = withContext(Dispatchers.IO) {
+                    runCatching {
+                        val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                            ?: throw IllegalStateException("Unable to read selected image.")
+                        Triple(bytes, context.contentResolver.getType(uri) ?: "image/jpeg", uri.lastPathSegment ?: "profile-photo")
+                    }.getOrNull()
+                }
+                if (result == null) {
+                    photoMessage = if (sinhala) "රූපය කියවිය නොහැක." else "Could not read the selected image."
+                } else if (result.first.size > 3 * 1024 * 1024) {
+                    photoBase64 = ""
+                    photoMessage = if (sinhala) "රූපය 3MB ට වඩා කුඩා විය යුතුයි." else "Photo must be 3MB or smaller."
+                } else if (result.second !in listOf("image/jpeg", "image/jpg", "image/png", "image/webp")) {
+                    photoBase64 = ""
+                    photoMessage = if (sinhala) "JPG, PNG හෝ WEBP රූපයක් තෝරන්න." else "Choose a JPG, PNG or WEBP image."
+                } else {
+                    photoBase64 = Base64.encodeToString(result.first, Base64.NO_WRAP)
+                    photoMimeType = result.second
+                    photoFileName = result.third
+                    photoMessage = if (sinhala) "රූපය තෝරාගෙන ඇත." else "Photo selected."
+                }
+            }
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -972,6 +1031,51 @@ private fun RegistrationScreen(
             password
         ) { password = it }
 
+        FormField(
+            if (sinhala) "විද්‍යුත් තැපෑල (අත්‍යවශ්‍ය නොවේ)" else "Email (optional)",
+            email
+        ) { email = it }
+
+        if (type == UserType.STUDENT) {
+            FormField(if (sinhala) "උපන් දිනය (YYYY-MM-DD)" else "Date of Birth (YYYY-MM-DD)", dateOfBirth) { dateOfBirth = it }
+            FormField(if (sinhala) "පාසල" else "School", school) { school = it }
+            FormField(if (sinhala) "ශ්‍රේණිය" else "Grade", grade) { grade = it }
+            Spacer(Modifier.height(8.dp))
+            Text(if (sinhala) "ඔබගේ පන්ති තෝරන්න" else "Select Your Classes", color = Purple, fontWeight = FontWeight.Bold)
+            if (classLoadMessage.isNotBlank()) Text(classLoadMessage, color = Red, fontSize = 12.sp)
+            availableClasses.forEach { classItem ->
+                val classId = classItem.optString("ClassID", classItem.optString("classId"))
+                val className = classItem.optString("ClassName", classItem.optString("className"))
+                if (classId.isNotBlank()) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(
+                            checked = classId in selectedClassIds,
+                            onCheckedChange = { checked ->
+                                if (checked && classId !in selectedClassIds) selectedClassIds.add(classId)
+                                if (!checked) selectedClassIds.remove(classId)
+                            }
+                        )
+                        Column {
+                            Text(className.ifBlank { classId }, color = DarkPurple, fontSize = 14.sp)
+                            val subjectName = classItem.optString("Subject")
+                            if (subjectName.isNotBlank()) Text(subjectName, color = Color.Gray, fontSize = 11.sp)
+                        }
+                    }
+                }
+            }
+        } else {
+            FormField(if (sinhala) "විෂය / විශේෂඥතාව" else "Subject / Specialization", subject) { subject = it }
+        }
+
+        Spacer(Modifier.height(10.dp))
+        OutlinedButton(
+            onClick = { photoPicker.launch("image/*") },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(if (sinhala) "Profile Photo තෝරන්න" else "Choose Profile Photo")
+        }
+        if (photoMessage.isNotBlank()) Text(photoMessage, color = if (photoBase64.isNotBlank()) Blue else Red, fontSize = 12.sp)
+
         Spacer(Modifier.height(20.dp))
 
         Text(
@@ -993,7 +1097,24 @@ private fun RegistrationScreen(
 
         Button(
             onClick = {
-                onSubmit(type, name, mobile, address, password)
+                onSubmit(
+                    RegistrationData(
+                        type = type,
+                        fullName = name,
+                        phone = mobile,
+                        address = address,
+                        password = password,
+                        email = email,
+                        dateOfBirth = dateOfBirth,
+                        school = school,
+                        grade = grade,
+                        classIds = selectedClassIds.toList(),
+                        subject = subject,
+                        photoBase64 = photoBase64,
+                        photoMimeType = photoMimeType,
+                        photoFileName = photoFileName
+                    )
+                )
             },
             enabled = !loading,
             modifier = Modifier
