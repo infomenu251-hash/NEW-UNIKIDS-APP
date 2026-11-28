@@ -113,7 +113,7 @@ fun StudentDashboardScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .shadow(10.dp, headerShape)
-                    .border(1.dp, UniWhite.copy(alpha = 0.28f), headerShape),
+                    .border(1.dp, UniPurple.copy(alpha = 0.25f), headerShape),
                 shape = headerShape,
                 colors = CardDefaults.cardColors(
                     containerColor = UniWhite
