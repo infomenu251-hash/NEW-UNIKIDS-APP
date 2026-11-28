@@ -1897,11 +1897,11 @@ private fun ConnectedRecordCard(
 ) {
     val preferredKeys = when (page) {
         Page.Classes -> listOf("ClassName", "className", "Subject", "subject", "Grade", "grade", "ClassID", "classId")
-        Page.Schedule -> listOf("className", "ClassName", "classDate", "ClassDate", "date", "startTime", "StartTime", "endTime", "EndTime", "description", "Description", "status", "Status")
+        Page.Schedule -> listOf("className", "ClassName", "classDate", "ClassDate", "ScheduleDate", "date", "startTime", "StartTime", "endTime", "EndTime", "description", "Description", "status", "Status")
         Page.Zoom -> listOf("className", "ClassName", "linkId", "LinkID", "classDate", "ClassDate", "startTime", "StartTime", "status", "Status")
         Page.Lessons -> listOf("title", "Title", "videoNumber", "VideoID", "subject", "Subject", "description", "Description", "status", "Status")
         Page.Materials -> listOf("title", "Title", "subject", "Subject", "description", "Description", "status", "Status")
-        Page.Payments -> listOf("paymentDate", "PaymentDate", "amount", "Amount", "description", "Description", "status", "Status", "receiptNumber", "ReceiptNumber")
+        Page.Payments -> listOf("paymentDate", "PaymentDate", "amount", "Amount", "paymentType", "PaymentType", "reference", "Reference", "status", "Status", "receiptNumber", "ReceiptNumber", "PaymentID", "InstallmentID", "DueDate")
         Page.Notifications -> listOf("title", "Title", "message", "Message", "createdDate", "CreatedDate")
         else -> emptyList()
     }
@@ -1909,7 +1909,7 @@ private fun ConnectedRecordCard(
         val value = item.optString(key, "").trim()
         if (value.isNotBlank() && value != "null") key to value else null
     }.distinctBy { it.second }
-    val url = listOf("zoomUrl", "ZoomURL", "videoUrl", "VideoURL", "materialUrl", "MaterialURL", "fileUrl", "FileURL", "url", "URL")
+    val url = listOf("zoomUrl", "ZoomURL", "videoUrl", "VideoURL", "materialUrl", "MaterialURL", "fileUrl", "FileURL", "ReceiptURL", "receiptUrl", "url", "URL")
         .firstNotNullOfOrNull { key -> item.optString(key, "").takeIf { it.startsWith("http", true) } }
 
     Card(
