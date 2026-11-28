@@ -10,6 +10,11 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -22,6 +27,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
@@ -521,6 +527,16 @@ private fun RegistrationSuccessScreen(
     userType: UserType,
     onContinue: () -> Unit
 ) {
+    val mascotTransition = rememberInfiniteTransition(label = "registrationMascot")
+    val mascotScale by mascotTransition.animateFloat(
+        initialValue = 0.96f,
+        targetValue = 1.04f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 850),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "mascotScale"
+    )
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -539,7 +555,10 @@ private fun RegistrationSuccessScreen(
         AssetImage(
             fileName = "mascot_celebrating_3d.png",
             description = "Celebrating UNIKIDS mascot",
-            modifier = Modifier.size(190.dp)
+            modifier = Modifier.size(190.dp).graphicsLayer {
+                scaleX = mascotScale
+                scaleY = mascotScale
+            }
         )
         Text(
             if (sinhala) "ලියාපදිංචිය සාර්ථකයි!" else "Registration Successful!",
