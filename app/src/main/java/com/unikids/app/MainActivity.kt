@@ -246,18 +246,6 @@ private fun UnikidsApp() {
                                 put("action", action)
                                 put("phone", mobile.trim())
                                 put("password", password)
-                                if (registration.email.isNotBlank()) put("email", registration.email)
-                                if (type == UserType.STUDENT) {
-                                    put("dateOfBirth", registration.dateOfBirth)
-                                    put("school", registration.school)
-                                    put("grade", registration.grade)
-                                    put("classIds", org.json.JSONArray(registration.classIds))
-                                } else if (registration.subject.isNotBlank()) put("subject", registration.subject)
-                                if (registration.photoBase64.isNotBlank()) {
-                                    put("photoBase64", registration.photoBase64)
-                                    put("photoMimeType", registration.photoMimeType)
-                                    put("photoFileName", registration.photoFileName)
-                                }
                             }
 
                             val result = sendApiRequest(request)
@@ -335,6 +323,18 @@ private fun UnikidsApp() {
                                 put("phone", mobile.trim())
                                 put("address", address.trim())
                                 put("password", password)
+                                if (registration.email.isNotBlank()) put("email", registration.email)
+                                if (type == UserType.STUDENT) {
+                                    put("dateOfBirth", registration.dateOfBirth)
+                                    put("school", registration.school)
+                                    put("grade", registration.grade)
+                                    put("classIds", org.json.JSONArray(registration.classIds))
+                                } else if (registration.subject.isNotBlank()) put("subject", registration.subject)
+                                if (registration.photoBase64.isNotBlank()) {
+                                    put("photoBase64", registration.photoBase64)
+                                    put("photoMimeType", registration.photoMimeType)
+                                    put("photoFileName", registration.photoFileName)
+                                }
                             }
 
                             val result = sendApiRequest(request)
