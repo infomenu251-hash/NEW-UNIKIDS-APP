@@ -174,7 +174,6 @@ private fun UnikidsApp() {
     var registrationSuccessType by remember { mutableStateOf(UserType.STUDENT) }
     var currentUserName by remember { mutableStateOf("") }
 
-    val context = androidx.compose.ui.platform.LocalContext.current
     val scope = rememberCoroutineScope()
     val sinhala = language == AppLanguage.SINHALA
 
