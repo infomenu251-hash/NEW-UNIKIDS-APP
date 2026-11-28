@@ -1243,10 +1243,7 @@ private fun RegistrationScreen(
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Checkbox(
                                         checked = classId in selectedClassIds,
-                                        onCheckedChange = { checked ->
-                                            if (checked && classId !in selectedClassIds) selectedClassIds.add(classId)
-                                            if (!checked) selectedClassIds.remove(classId)
-                                        }
+                                        onCheckedChange = null
                                     )
                                     Text(className)
                                 }
