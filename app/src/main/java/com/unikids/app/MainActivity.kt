@@ -600,20 +600,21 @@ private fun playVoiceAsset(
         var player: MediaPlayer? = null
         try {
             // Copy to cache so playback works even if Android compresses WAV assets.
-            temporaryFile = java.io.File.createTempFile("unikids_voice_", ".wav", appContext.cacheDir)
+            val tempFile = java.io.File.createTempFile("unikids_voice_", ".wav", appContext.cacheDir)
+            temporaryFile = tempFile
             appContext.assets.open("voices/$fileName").use { input ->
-                temporaryFile.outputStream().use { output -> input.copyTo(output) }
+                tempFile.outputStream().use { output -> input.copyTo(output) }
             }
-            player = MediaPlayer()
-            val activePlayer = player
-            activePlayer.setDataSource(temporaryFile.absolutePath)
+            val activePlayer = MediaPlayer()
+            player = activePlayer
+            activePlayer.setDataSource(tempFile.absolutePath)
             activePlayer.setOnCompletionListener {
                 it.release()
-                temporaryFile.delete()
+                tempFile.delete()
             }
             activePlayer.setOnErrorListener { mp, _, _ ->
                 mp.release()
-                temporaryFile.delete()
+                tempFile.delete()
                 true
             }
             activePlayer.setOnPreparedListener { it.start() }
