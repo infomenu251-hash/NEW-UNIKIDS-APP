@@ -91,7 +91,7 @@ private data class RegistrationData(
 
 
 /* Shared in-memory caches reduce repeat network and asset decoding work. */
-private object UnikidsImageCache {
+internal object UnikidsImageCache {
     private val cache = object : LruCache<String, android.graphics.Bitmap>(12 * 1024) {
         override fun sizeOf(key: String, value: android.graphics.Bitmap): Int =
             (value.byteCount / 1024).coerceAtLeast(1)
@@ -579,6 +579,7 @@ private fun UnikidsApp() {
                         "notifications" -> Page.Notifications
                         "profile" -> Page.Profile
                         "progress" -> Page.Progress
+                        "payments" -> Page.Payments
                         else -> Page.StudentHome
                     })
                 },
