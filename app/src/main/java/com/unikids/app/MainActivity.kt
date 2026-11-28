@@ -327,7 +327,7 @@ private fun UnikidsApp() {
                         registration.photoBase64.isBlank() ||
                         (type == UserType.STUDENT && (
                             registration.classIds.isEmpty() ||
-                            registration.dateOfBirth.isBlank() ||
+                            !registration.dateOfBirth.matches(Regex("\\d{4}-\\d{2}-\\d{2}")) ||
                             registration.school.isBlank() ||
                             registration.grade.isBlank()
                         ))
@@ -335,7 +335,7 @@ private fun UnikidsApp() {
                         val validationMessage = when {
                             registration.photoBase64.isBlank() -> if (sinhala) "Profile Photo එකක් තෝරන්න." else "Please select a profile photo."
                             type == UserType.STUDENT && registration.classIds.isEmpty() -> if (sinhala) "අවම වශයෙන් එක් පන්තියක් තෝරන්න." else "Select at least one active class."
-                            type == UserType.STUDENT -> if (sinhala) "උපන් දිනය, පාසල සහ ශ්‍රේණිය ඇතුළත් කරන්න." else "Enter Date of Birth, School and Grade."
+                            type == UserType.STUDENT -> if (sinhala) "උපන් දිනය YYYY-MM-DD ආකෘතියෙන්, පාසල සහ ශ්‍රේණිය ඇතුළත් කරන්න." else "Enter Date of Birth as YYYY-MM-DD, School and Grade."
                             else -> if (sinhala) "සියලු තොරතුරු ඇතුළත් කරන්න." else "Please complete all fields."
                         }
                         showError(validationMessage)
