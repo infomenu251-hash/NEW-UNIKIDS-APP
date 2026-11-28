@@ -399,6 +399,9 @@ private fun UnikidsApp() {
                 sinhala = sinhala,
                 student = false,
                 userName = currentUserName,
+                onLanguageChange = { selected ->
+                    language = if (selected) AppLanguage.SINHALA else AppLanguage.ENGLISH
+                },
                 onOpen = { page = it },
                 onLogout = {
                     logoutFromApp(scope, sessionToken) {
@@ -1177,6 +1180,7 @@ private fun DashboardScreen(
     sinhala: Boolean,
     student: Boolean,
     userName: String,
+    onLanguageChange: (Boolean) -> Unit,
     onOpen: (Page) -> Unit,
     onLogout: () -> Unit
 ) {
@@ -1229,6 +1233,9 @@ private fun DashboardScreen(
                     color = DarkPurple,
                     fontSize = 12.sp
                 )
+            }
+            TextButton(onClick = { onLanguageChange(!sinhala) }) {
+                Text(if (sinhala) "ENGLISH" else "සිංහල", color = Blue, fontWeight = FontWeight.Bold)
             }
         }
 
