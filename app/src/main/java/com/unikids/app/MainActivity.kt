@@ -9,6 +9,7 @@ import android.graphics.BitmapFactory
 import android.media.MediaPlayer
 import android.net.Uri
 import android.util.Base64
+import android.util.LruCache
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.compose.BackHandler
@@ -88,8 +89,97 @@ private data class RegistrationData(
     val photoBase64: String, val photoMimeType: String, val photoFileName: String
 )
 
+
+/* Shared in-memory caches reduce repeat network and asset decoding work. */
+private object UnikidsImageCache {
+    private val cache = object : LruCache<String, android.graphics.Bitmap>(12 * 1024) {
+        override fun sizeOf(key: String, value: android.graphics.Bitmap): Int =
+            (value.byteCount / 1024).coerceAtLeast(1)
+    }
+
+    fun get(key: String): android.graphics.Bitmap? = cache.get(key)
+
+    fun put(key: String, bitmap: android.graphics.Bitmap) {
+        if (!bitmap.isRecycled) cache.put(key, bitmap)
+    }
+}
+
+private object UnikidsApiCache {
+    private data class Entry(val savedAt: Long, val json: JSONObject)
+    private val cache = LruCache<String, Entry>(32)
+    private const val TTL_MS = 20_000L
+
+    fun get(key: String): JSONObject? {
+        val entry = cache.get(key) ?: return null
+        if (System.currentTimeMillis() - entry.savedAt > TTL_MS) {
+            cache.remove(key)
+            return null
+        }
+        return runCatching { JSONObject(entry.json.toString()) }.getOrNull()
+    }
+
+    fun put(key: String, json: JSONObject) {
+        cache.put(key, Entry(System.currentTimeMillis(), JSONObject(json.toString())))
+    }
+
+    fun invalidateToken(token: String) {
+        if (token.isBlank()) return
+        val snapshot = cache.snapshot()
+        snapshot.keys.filter { it.endsWith("|$token") }.forEach(cache::remove)
+    }
+}
+
+private fun decodeCachedRemoteImage(url: String): android.graphics.Bitmap? {
+    UnikidsImageCache.get(url)?.let { return it }
+    var connection: HttpURLConnection? = null
+    return try {
+        connection = URL(url).openConnection() as HttpURLConnection
+        connection.connectTimeout = 8_000
+        connection.readTimeout = 10_000
+        connection.instanceFollowRedirects = true
+        connection.setRequestProperty("Accept", "image/*")
+        val bytes = connection.inputStream.use { it.readBytes() }
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+        var sample = 1
+        val largest = maxOf(bounds.outWidth, bounds.outHeight)
+        while (largest / sample > 1200) sample *= 2
+        val options = BitmapFactory.Options().apply { inSampleSize = sample }
+        BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options)?.also {
+            UnikidsImageCache.put(url, it)
+        }
+    } catch (_: Exception) {
+        null
+    } finally {
+        connection?.disconnect()
+    }
+}
+
 private suspend fun sendApiRequest(data: JSONObject): ApiResult {
     return withContext(Dispatchers.IO) {
+        val action = data.optString("action", "")
+        val token = data.optString("token", "")
+        val cacheable = action in setOf(
+            "getStudentContent", "getTeacherDashboard", "getNotifications",
+            "getProfile", "getClasses", "getMyPayments"
+        )
+        val cacheKey = "$action|$token"
+        if (cacheable) {
+            UnikidsApiCache.get(cacheKey)?.let { cached ->
+                val user = cached.optJSONObject("user")
+                return@withContext ApiResult(
+                    success = cached.optBoolean("success", false),
+                    message = cached.optString("message", ""),
+                    token = cached.optString("token", ""),
+                    userId = user?.optString("userId", "") ?: "",
+                    userName = user?.optString("fullName", "") ?: "",
+                    profile = user,
+                    response = cached
+                )
+            }
+        } else {
+            UnikidsApiCache.invalidateToken(token)
+        }
         var postConnection: HttpURLConnection? = null
         var responseConnection: HttpURLConnection? = null
 
@@ -149,6 +239,9 @@ private suspend fun sendApiRequest(data: JSONObject): ApiResult {
             }
 
             val json = JSONObject(responseText)
+            if (cacheable && json.optBoolean("success", false)) {
+                UnikidsApiCache.put(cacheKey, json)
+            }
             val user = json.optJSONObject("user")
 
             ApiResult(
@@ -596,32 +689,36 @@ private fun playVoiceAsset(
 ) {
     val appContext = context.applicationContext
     kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
-        var temporaryFile: java.io.File? = null
-        var player: MediaPlayer? = null
+        var tempFile: java.io.File? = null
         try {
-            // Copy to cache so playback works even if Android compresses WAV assets.
-            val tempFile = java.io.File.createTempFile("unikids_voice_", ".wav", appContext.cacheDir)
-            temporaryFile = tempFile
+            // Copy WAV to a real file because packaged assets may be compressed.
+            tempFile = java.io.File.createTempFile("unikids_voice_", ".wav", appContext.cacheDir)
             appContext.assets.open("voices/$fileName").use { input ->
                 tempFile.outputStream().use { output -> input.copyTo(output) }
             }
-            val activePlayer = MediaPlayer()
-            player = activePlayer
-            activePlayer.setDataSource(tempFile.absolutePath)
-            activePlayer.setOnCompletionListener {
-                it.release()
-                tempFile.delete()
+            val playableFile = tempFile
+            withContext(Dispatchers.Main) {
+                val player = MediaPlayer()
+                try {
+                    player.setDataSource(playableFile.absolutePath)
+                    player.setOnCompletionListener {
+                        it.release()
+                        playableFile.delete()
+                    }
+                    player.setOnErrorListener { mediaPlayer, _, _ ->
+                        mediaPlayer.release()
+                        playableFile.delete()
+                        true
+                    }
+                    player.setOnPreparedListener { mediaPlayer -> mediaPlayer.start() }
+                    player.prepareAsync()
+                } catch (_: Exception) {
+                    player.release()
+                    playableFile.delete()
+                }
             }
-            activePlayer.setOnErrorListener { mp, _, _ ->
-                mp.release()
-                tempFile.delete()
-                true
-            }
-            activePlayer.setOnPreparedListener { it.start() }
-            activePlayer.prepareAsync()
         } catch (_: Exception) {
-            player?.release()
-            temporaryFile?.delete()
+            tempFile?.delete()
         }
     }
 }
@@ -753,16 +850,18 @@ private fun AssetImage(
     val context = androidx.compose.ui.platform.LocalContext.current
 
     val bitmap = remember(fileName) {
-        runCatching {
+        UnikidsImageCache.get("asset:$fileName") ?: runCatching {
             context.assets.open("images/$fileName").use {
-                BitmapFactory.decodeStream(it)?.asImageBitmap()
+                BitmapFactory.decodeStream(it)?.also { decoded ->
+                    UnikidsImageCache.put("asset:$fileName", decoded)
+                }
             }
         }.getOrNull()
     }
 
     if (bitmap != null) {
         Image(
-            bitmap = bitmap,
+            bitmap = bitmap.asImageBitmap(),
             contentDescription = description,
             modifier = modifier,
             contentScale = ContentScale.Fit
@@ -1747,32 +1846,18 @@ private fun RemoteProfileImage(
     displayName: String
 ) {
     var bitmap by remember(imageUrl) {
-        mutableStateOf<androidx.compose.ui.graphics.ImageBitmap?>(null)
+        mutableStateOf(UnikidsImageCache.get(imageUrl))
     }
 
     LaunchedEffect(imageUrl) {
-        bitmap = if (imageUrl.isBlank()) {
-            null
-        } else {
-            withContext(Dispatchers.IO) {
-                runCatching {
-                    val connection = URL(imageUrl).openConnection() as HttpURLConnection
-                    connection.connectTimeout = 15000
-                    connection.readTimeout = 15000
-                    connection.instanceFollowRedirects = true
-                    try {
-                        connection.inputStream.use { BitmapFactory.decodeStream(it)?.asImageBitmap() }
-                    } finally {
-                        connection.disconnect()
-                    }
-                }.getOrNull()
-            }
+        bitmap = if (imageUrl.isBlank()) null else withContext(Dispatchers.IO) {
+            decodeCachedRemoteImage(imageUrl)
         }
     }
 
     if (bitmap != null) {
         Image(
-            bitmap = bitmap!!,
+            bitmap = bitmap!!.asImageBitmap(),
             contentDescription = "Profile photo",
             modifier = Modifier.size(112.dp).clip(RoundedCornerShape(56.dp)),
             contentScale = ContentScale.Crop
@@ -2255,26 +2340,16 @@ private fun TeacherSubmissionForm(
 @Composable
 private fun RemoteThumbnailImage(imageUrl: String) {
     var bitmap by remember(imageUrl) {
-        mutableStateOf<androidx.compose.ui.graphics.ImageBitmap?>(null)
+        mutableStateOf(UnikidsImageCache.get(imageUrl))
     }
     LaunchedEffect(imageUrl) {
         bitmap = withContext(Dispatchers.IO) {
-            runCatching {
-                val connection = URL(imageUrl).openConnection() as HttpURLConnection
-                connection.connectTimeout = 12000
-                connection.readTimeout = 12000
-                connection.instanceFollowRedirects = true
-                try {
-                    connection.inputStream.use { BitmapFactory.decodeStream(it)?.asImageBitmap() }
-                } finally {
-                    connection.disconnect()
-                }
-            }.getOrNull()
+            decodeCachedRemoteImage(imageUrl)
         }
     }
     if (bitmap != null) {
         Image(
-            bitmap = bitmap!!,
+            bitmap = bitmap!!.asImageBitmap(),
             contentDescription = "Video lesson thumbnail",
             modifier = Modifier.fillMaxWidth().height(170.dp).clip(RoundedCornerShape(12.dp)),
             contentScale = ContentScale.Crop
