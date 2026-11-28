@@ -1548,6 +1548,7 @@ private fun ProfileScreen(
                         }
                         ProfileInfoRow(if (sinhala) "මගේ පන්ති" else "My Classes", classText)
                     } else {
+                        ProfileInfoRow(if (sinhala) "විෂය" else "Subject", profile.optString("subject"))
                         val classText = buildString {
                             if (assignedClasses != null) {
                                 for (i in 0 until assignedClasses.length()) {
