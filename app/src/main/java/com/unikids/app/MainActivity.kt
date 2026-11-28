@@ -154,6 +154,7 @@ private fun UnikidsApp() {
     var profileLoading by remember { mutableStateOf(false) }
     var profileError by remember { mutableStateOf("") }
     var registrationSuccessType by remember { mutableStateOf(UserType.STUDENT) }
+    var currentUserName by remember { mutableStateOf("") }
 
     val context = androidx.compose.ui.platform.LocalContext.current
     val scope = rememberCoroutineScope()
@@ -242,6 +243,7 @@ private fun UnikidsApp() {
 
                             if (result.success && result.token.isNotBlank()) {
                                 sessionToken = result.token
+                                currentUserName = result.userName
                                 userType = type
                                 apiMessage = ""
 
@@ -329,6 +331,7 @@ private fun UnikidsApp() {
             )
 
             Page.StudentHome -> StudentDashboardScreen(
+                studentName = currentUserName.ifBlank { if (sinhala) "ශිෂ්‍යයා" else "Student" },
                 isSinhala = sinhala,
                 onLanguageChange = { selected ->
                     language = if (selected) {
@@ -354,6 +357,7 @@ private fun UnikidsApp() {
                 onLogout = {
                     logoutFromApp(scope, sessionToken) {
                         sessionToken = ""
+                        currentUserName = ""
                         profileData = null
                         profileError = ""
                         apiMessage = ""
