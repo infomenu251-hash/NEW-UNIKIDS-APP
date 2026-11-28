@@ -53,7 +53,7 @@ import java.util.TimeZone
 
 // NEW UNIKIDS APP - LIVE BACKEND
 private const val API_URL =
-    "https://script.google.com/macros/s/AKfycby-0V1PqZVNbhlTCB8hIt9ef4ieLiqpJFaGe4CTvN8fhzkIJeecHDXkaMCW8XG9VH2h/exec"
+    "https://script.google.com/macros/s/AKfycbxTbbxgXWE7xXY9lUZ7ZpAPdAScMO2TbwexL4JMwqCMS356OJhZg2APqM26I62N8q-f/exec"
 
 private val Purple = Color(0xFF291442)
 private val DarkPurple = Color(0xFF1B0D2C)
